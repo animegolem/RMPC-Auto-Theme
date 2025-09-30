@@ -12,6 +12,8 @@
 #
 # Environment variables provided by rmpc:
 #   $FILE, $ARTIST, $TITLE, $ALBUM, $PID, etc.
+# Optional overrides:
+#   RMPC_THEME_GEN_DISABLE_SCROLLBAR=1 to omit scrollbar block from generated themes
 #
 
 set -euo pipefail
@@ -21,6 +23,14 @@ TMP_DIR="/tmp/rmpc"
 THEME_DIR="$HOME/.config/rmpc/themes"
 LOG_FILE="$HOME/.config/rmpc/theme-switcher.log"
 BINARY_PATH="${RMPC_THEME_GEN_PATH:-rmpc-theme-gen}"
+
+# Optional toggles
+SCROLLBAR_ARGS=()
+case "${RMPC_THEME_GEN_DISABLE_SCROLLBAR:-0}" in
+    1|true|TRUE|True|yes|YES)
+        SCROLLBAR_ARGS+=("--disable-scrollbar")
+        ;;
+esac
 
 # Ensure directories exist
 mkdir -p "$TMP_DIR" "$THEME_DIR"
@@ -88,12 +98,19 @@ fi
 
 # Generate theme
 log "Generating theme (format: $MIME_TYPE)..."
-if ! "$BINARY_PATH" \
-    --image "$COVER_WITH_EXT" \
-    --k 8 \
-    --space CIELAB \
-    --theme-output "$THEME_DIR/current-song.ron" \
-    >> "$LOG_FILE" 2>&1; then
+GENERATOR_CMD=(
+    "$BINARY_PATH"
+    --image "$COVER_WITH_EXT"
+    --k 8
+    --space CIELAB
+    --theme-output "$THEME_DIR/current-song.ron"
+)
+
+if [ ${#SCROLLBAR_ARGS[@]} -gt 0 ]; then
+    GENERATOR_CMD+=("${SCROLLBAR_ARGS[@]}")
+fi
+
+if ! "${GENERATOR_CMD[@]}" >> "$LOG_FILE" 2>&1; then
     log "ERROR: Theme generation failed"
     exit 0
 fi

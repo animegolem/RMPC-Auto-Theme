@@ -140,6 +140,7 @@ Options:
 - `--space` (default: CIELAB): Color space (CIELAB, RGB, HSL, HSV, YUV, CIELUV)
 - `--theme-output`: Path to output theme file (generates RON format)
 - `--output`: Path to output JSON analysis (optional)
+- `--disable-scrollbar`: Omit the scrollbar block (helpful if panes never scroll or you want to hide the gutter)
 
 ## Performance
 
@@ -177,6 +178,10 @@ Run tests:
 **Binary not found:**
 - Set environment variable: `export RMPC_THEME_GEN_PATH=/path/to/rmpc-theme-gen`
 - Or add to PATH: `export PATH="$HOME/.local/bin:$PATH"`
+
+**Scrollbar strip shows stale color:**
+- Default themes now paint scrollbar tracks and ends with the active background; regenerate themes after updating.
+- To suppress the scrollbar entirely, set `RMPC_THEME_GEN_DISABLE_SCROLLBAR=1` before invoking `on_song_change.sh` (the script passes `--disable-scrollbar`).
 
 ## Architecture
 

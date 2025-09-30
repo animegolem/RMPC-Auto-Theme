@@ -43,10 +43,37 @@ for i in "${!TEST_IMAGES[@]}"; do
             BG=$(jq -r '.roleAssignments[] | select(.role=="Background") | .hex' "$TEST_DIR/${NAME}.json")
             TXT=$(jq -r '.roleAssignments[] | select(.role=="Text") | .hex' "$TEST_DIR/${NAME}.json")
             echo "  Colors: bg=$BG text=$TXT"
+            TRACK_LINE=$(grep -E 'track_style:' "$TEST_DIR/${NAME}.ron" | head -1 || true)
+            ENDS_LINE=$(grep -E 'ends_style:' "$TEST_DIR/${NAME}.ron" | head -1 || true)
+            if [[ "$TRACK_LINE" == *"$BG"* && "$ENDS_LINE" == *"$BG"* ]]; then
+                echo "  Scrollbar styles match background"
+            else
+                echo "  WARN: Scrollbar styles do not match background"
+            fi
+            SB_ENABLED=$(jq -r '.scrollbarEnabled' "$TEST_DIR/${NAME}.json")
+            echo "  Scrollbar enabled: $SB_ENABLED"
         fi
     else
         echo "✗ Generation failed"
         cat "$TEST_DIR/${NAME}.json" 2>/dev/null || true
+    fi
+    echo ""
+
+    # No-scrollbar variant
+    NO_SB_NAME="${NAME}-no-scrollbar"
+    if "$BINARY" --image "$IMG" --k 8 --theme-output "$TEST_DIR/${NO_SB_NAME}.ron" --disable-scrollbar > "$TEST_DIR/${NO_SB_NAME}.json" 2>&1; then
+        if command -v jq &>/dev/null; then
+            SB_ENABLED=$(jq -r '.scrollbarEnabled' "$TEST_DIR/${NO_SB_NAME}.json")
+            echo "  (No-scrollbar) scrollbar enabled: $SB_ENABLED"
+        fi
+        if grep -q 'scrollbar: None' "$TEST_DIR/${NO_SB_NAME}.ron"; then
+            echo "  (No-scrollbar) Theme omits scrollbar block"
+        else
+            echo "  WARN: No-scrollbar theme still contains scrollbar block"
+        fi
+    else
+        echo "✗ No-scrollbar variant failed"
+        cat "$TEST_DIR/${NO_SB_NAME}.json" 2>/dev/null || true
     fi
     echo ""
 done

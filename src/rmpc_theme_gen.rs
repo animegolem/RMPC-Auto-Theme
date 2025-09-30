@@ -59,6 +59,10 @@ struct Args {
     /// Generate and write theme file (RON format) to specified path
     #[arg(long)]
     theme_output: Option<PathBuf>,
+
+    /// Disable scrollbar block in generated theme
+    #[arg(long)]
+    disable_scrollbar: bool,
 }
 
 #[derive(Debug, Serialize, Clone, Copy)]
@@ -88,6 +92,7 @@ struct ThemeGenOutput {
     iterations: usize,
     duration_ms: f64,
     color_space: String,
+    scrollbar_enabled: bool,
 }
 
 /// Select background color: prefer most dominant with reasonable saturation/lightness
@@ -126,7 +131,11 @@ fn select_text_color(clusters: &[ColorCluster], bg_lab: [f32; 3]) -> (usize, f32
 }
 
 /// Select accent color: high saturation with good contrast
-fn select_accent_color(clusters: &[ColorCluster], bg_lab: [f32; 3], used_indices: &[usize]) -> (usize, f32) {
+fn select_accent_color(
+    clusters: &[ColorCluster],
+    bg_lab: [f32; 3],
+    used_indices: &[usize],
+) -> (usize, f32) {
     let mut best_idx = 0;
     let mut best_score = 0.0;
 
@@ -152,7 +161,11 @@ fn select_accent_color(clusters: &[ColorCluster], bg_lab: [f32; 3], used_indices
 }
 
 /// Select border color: mid-saturation, distinct from background
-fn select_border_color(clusters: &[ColorCluster], bg_lab: [f32; 3], used_indices: &[usize]) -> (usize, f32) {
+fn select_border_color(
+    clusters: &[ColorCluster],
+    bg_lab: [f32; 3],
+    used_indices: &[usize],
+) -> (usize, f32) {
     let mut best_idx = 0;
     let mut best_score = 0.0;
 
@@ -182,7 +195,11 @@ fn select_border_color(clusters: &[ColorCluster], bg_lab: [f32; 3], used_indices
 }
 
 /// Select active item color: bright and saturated
-fn select_active_item_color(clusters: &[ColorCluster], bg_lab: [f32; 3], used_indices: &[usize]) -> (usize, f32) {
+fn select_active_item_color(
+    clusters: &[ColorCluster],
+    bg_lab: [f32; 3],
+    used_indices: &[usize],
+) -> (usize, f32) {
     let mut best_idx = 0;
     let mut best_score = 0.0;
 
@@ -225,14 +242,41 @@ fn generate_dark_text() -> ([u8; 3], [f32; 3], [f32; 3]) {
 }
 
 /// Generate RON theme file content from role assignments
-fn generate_theme_ron(assignments: &[RoleAssignment]) -> String {
+fn generate_theme_ron(assignments: &[RoleAssignment], scrollbar_enabled: bool) -> String {
     // Find role assignments
-    let bg = assignments.iter().find(|a| a.role == ColorRole::Background).unwrap();
-    let text = assignments.iter().find(|a| a.role == ColorRole::Text).unwrap();
-    let accent = assignments.iter().find(|a| a.role == ColorRole::Accent).unwrap();
-    let border = assignments.iter().find(|a| a.role == ColorRole::Border).unwrap();
-    let active = assignments.iter().find(|a| a.role == ColorRole::ActiveItem).unwrap();
-    let inactive = assignments.iter().find(|a| a.role == ColorRole::InactiveItem).unwrap();
+    let bg = assignments
+        .iter()
+        .find(|a| a.role == ColorRole::Background)
+        .unwrap();
+    let text = assignments
+        .iter()
+        .find(|a| a.role == ColorRole::Text)
+        .unwrap();
+    let accent = assignments
+        .iter()
+        .find(|a| a.role == ColorRole::Accent)
+        .unwrap();
+    let border = assignments
+        .iter()
+        .find(|a| a.role == ColorRole::Border)
+        .unwrap();
+    let active = assignments
+        .iter()
+        .find(|a| a.role == ColorRole::ActiveItem)
+        .unwrap();
+    let inactive = assignments
+        .iter()
+        .find(|a| a.role == ColorRole::InactiveItem)
+        .unwrap();
+
+    let scrollbar_block = if scrollbar_enabled {
+        format!(
+            "    scrollbar: (\n        symbols: [\"│\", \"█\", \"▲\", \"▼\"],\n        track_style: (fg: \"{}\"),\n        ends_style: (fg: \"{}\"),\n        thumb_style: (fg: \"{}\"),\n    ),\n",
+            bg.hex, bg.hex, accent.hex
+        )
+    } else {
+        "    scrollbar: None,\n".to_string()
+    };
 
     format!(
         r#"#![enable(implicit_some)]
@@ -283,12 +327,7 @@ fn generate_theme_ron(assignments: &[RoleAssignment]) -> String {
         elapsed_style: (fg: "{}"),
         thumb_style: (fg: "{}", bg: "{}"),
     ),
-    scrollbar: (
-        symbols: ["│", "█", "▲", "▼"],
-        track_style: (),
-        ends_style: (),
-        thumb_style: (fg: "{}"),
-    ),
+__SCROLLBAR_BLOCK__
     song_table_format: [
         (
             prop: (kind: Property(Artist),
@@ -436,8 +475,6 @@ fn generate_theme_ron(assignments: &[RoleAssignment]) -> String {
         active.hex,      // progress_bar.elapsed_style.fg
         active.hex,      // progress_bar.thumb_style.fg
         bg.hex,          // progress_bar.thumb_style.bg
-        // Scrollbar
-        accent.hex,      // scrollbar.thumb_style.fg
         // Song table format
         text.hex,        // album style fg
         text.hex,        // album default style fg
@@ -455,6 +492,7 @@ fn generate_theme_ron(assignments: &[RoleAssignment]) -> String {
         text.hex,        // separator_style.fg
         inactive.hex,    // style.fg
     )
+    .replace("__SCROLLBAR_BLOCK__", &scrollbar_block)
 }
 
 /// Map color clusters to UI element roles
@@ -492,15 +530,23 @@ fn map_colors_to_roles(clusters: &[ColorCluster]) -> Vec<RoleAssignment> {
                 generate_dark_text()
             };
             (
-                RgbValue { r: rgb[0], g: rgb[1], b: rgb[2] },
+                RgbValue {
+                    r: rgb[0],
+                    g: rgb[1],
+                    b: rgb[2],
+                },
                 hsv,
                 lab,
                 color::rgb_to_hex(rgb),
             )
         } else {
             used_indices.push(text_idx);
-            (text_cluster.rgb, text_cluster.hsv, text_cluster.lab,
-             color::rgb_to_hex([text_cluster.rgb.r, text_cluster.rgb.g, text_cluster.rgb.b]))
+            (
+                text_cluster.rgb,
+                text_cluster.hsv,
+                text_cluster.lab,
+                color::rgb_to_hex([text_cluster.rgb.r, text_cluster.rgb.g, text_cluster.rgb.b]),
+            )
         };
 
     assignments.push(RoleAssignment {
@@ -523,7 +569,11 @@ fn map_colors_to_roles(clusters: &[ColorCluster]) -> Vec<RoleAssignment> {
         rgb: accent_cluster.rgb,
         hsv: accent_cluster.hsv,
         lab: accent_cluster.lab,
-        hex: color::rgb_to_hex([accent_cluster.rgb.r, accent_cluster.rgb.g, accent_cluster.rgb.b]),
+        hex: color::rgb_to_hex([
+            accent_cluster.rgb.r,
+            accent_cluster.rgb.g,
+            accent_cluster.rgb.b,
+        ]),
         source_cluster_index: accent_idx,
         confidence: accent_conf,
     });
@@ -538,7 +588,11 @@ fn map_colors_to_roles(clusters: &[ColorCluster]) -> Vec<RoleAssignment> {
         rgb: border_cluster.rgb,
         hsv: border_cluster.hsv,
         lab: border_cluster.lab,
-        hex: color::rgb_to_hex([border_cluster.rgb.r, border_cluster.rgb.g, border_cluster.rgb.b]),
+        hex: color::rgb_to_hex([
+            border_cluster.rgb.r,
+            border_cluster.rgb.g,
+            border_cluster.rgb.b,
+        ]),
         source_cluster_index: border_idx,
         confidence: border_conf,
     });
@@ -553,7 +607,11 @@ fn map_colors_to_roles(clusters: &[ColorCluster]) -> Vec<RoleAssignment> {
         rgb: active_cluster.rgb,
         hsv: active_cluster.hsv,
         lab: active_cluster.lab,
-        hex: color::rgb_to_hex([active_cluster.rgb.r, active_cluster.rgb.g, active_cluster.rgb.b]),
+        hex: color::rgb_to_hex([
+            active_cluster.rgb.r,
+            active_cluster.rgb.g,
+            active_cluster.rgb.b,
+        ]),
         source_cluster_index: active_idx,
         confidence: active_conf,
     });
@@ -565,7 +623,11 @@ fn map_colors_to_roles(clusters: &[ColorCluster]) -> Vec<RoleAssignment> {
         rgb: inactive_cluster.rgb,
         hsv: inactive_cluster.hsv,
         lab: inactive_cluster.lab,
-        hex: color::rgb_to_hex([inactive_cluster.rgb.r, inactive_cluster.rgb.g, inactive_cluster.rgb.b]),
+        hex: color::rgb_to_hex([
+            inactive_cluster.rgb.r,
+            inactive_cluster.rgb.g,
+            inactive_cluster.rgb.b,
+        ]),
         source_cluster_index: border_idx,
         confidence: 0.7,
     });
@@ -576,7 +638,11 @@ fn map_colors_to_roles(clusters: &[ColorCluster]) -> Vec<RoleAssignment> {
         rgb: accent_cluster.rgb,
         hsv: accent_cluster.hsv,
         lab: accent_cluster.lab,
-        hex: color::rgb_to_hex([accent_cluster.rgb.r, accent_cluster.rgb.g, accent_cluster.rgb.b]),
+        hex: color::rgb_to_hex([
+            accent_cluster.rgb.r,
+            accent_cluster.rgb.g,
+            accent_cluster.rgb.b,
+        ]),
         source_cluster_index: accent_idx,
         confidence: accent_conf,
     });
@@ -587,7 +653,11 @@ fn map_colors_to_roles(clusters: &[ColorCluster]) -> Vec<RoleAssignment> {
         rgb: active_cluster.rgb,
         hsv: active_cluster.hsv,
         lab: active_cluster.lab,
-        hex: color::rgb_to_hex([active_cluster.rgb.r, active_cluster.rgb.g, active_cluster.rgb.b]),
+        hex: color::rgb_to_hex([
+            active_cluster.rgb.r,
+            active_cluster.rgb.g,
+            active_cluster.rgb.b,
+        ]),
         source_cluster_index: active_idx,
         confidence: active_conf,
     });
@@ -615,8 +685,8 @@ fn main() -> Result<()> {
     };
 
     // Sample pixels from image
-    let sample_result = prepare_samples(&sample_params)
-        .context("Failed to load and sample image")?;
+    let sample_result =
+        prepare_samples(&sample_params).context("Failed to load and sample image")?;
 
     if sample_result.samples.is_empty() {
         anyhow::bail!("No pixels sampled from image");
@@ -718,10 +788,11 @@ fn main() -> Result<()> {
 
     // Map colors to theme element roles
     let role_assignments = map_colors_to_roles(&clusters);
+    let scrollbar_enabled = !args.disable_scrollbar;
 
     // Generate theme file if requested (before moving role_assignments)
     if let Some(theme_path) = &args.theme_output {
-        let theme_ron = generate_theme_ron(&role_assignments);
+        let theme_ron = generate_theme_ron(&role_assignments, scrollbar_enabled);
 
         // Ensure parent directory exists
         if let Some(parent) = theme_path.parent() {
@@ -744,11 +815,12 @@ fn main() -> Result<()> {
         iterations: kmeans_result.iterations,
         duration_ms,
         color_space: args.space.clone(),
+        scrollbar_enabled,
     };
 
     // Serialize to JSON
-    let json_output = serde_json::to_string_pretty(&output)
-        .context("Failed to serialize output to JSON")?;
+    let json_output =
+        serde_json::to_string_pretty(&output).context("Failed to serialize output to JSON")?;
 
     // Write to stdout or file
     if let Some(output_path) = args.output {

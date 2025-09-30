@@ -26,3 +26,4 @@ test-results/*.jpeg
 # Temporary files
 *.tmp
 /tmp/
+/pkgs/
