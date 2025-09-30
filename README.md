@@ -1,0 +1,245 @@
+# rmpc Dynamic Theme Generator
+
+Automatically generate rmpc themes from album artwork using K-means color extraction.
+
+## Status
+
+**✅ FULLY FUNCTIONAL** - 6/6 implementation tickets complete, tested with live music playback
+
+## Features
+
+- 🎨 Extracts dominant colors from album art using K-means clustering
+- 🎯 Intelligently maps colors to UI elements (background, text, accents, borders)
+- 📊 WCAG AA contrast compliance (4.5:1 ratio)
+- ⚡ Fast generation (~10ms per image)
+- 🔄 Automatic theme switching on song change
+- 🛡️ Robust error handling
+- 📝 Detailed logging for debugging
+
+## Quick Start
+
+### Building from Source
+
+```bash
+# Clone or download this repository
+cd ~/.config/rmpc/theme-switcher
+
+# Build the binary (requires Rust/Cargo)
+./build.sh install
+
+# This will:
+# - Build the release binary (~2.2MB)
+# - Install to ~/.local/bin/rmpc-theme-gen
+# - Make it available in your PATH
+```
+
+### Prerequisites
+
+- Rust toolchain (rustc, cargo) - Install from https://rustup.rs
+- rmpc music player (0.9.0+) - https://github.com/mierak/rmpc
+- MPD (Music Player Daemon) configured with music library
+
+### Configuration
+
+Your rmpc config is already configured:
+
+```ron
+# ~/.config/rmpc/config.ron
+(
+    theme: "current-song",
+    enable_config_hot_reload: true,
+    on_song_change: ["~/.config/rmpc/on_song_change.sh"],
+    ...
+)
+```
+
+### Usage
+
+Just play music in rmpc! The theme will automatically update when songs change.
+
+## How It Works
+
+1. **Song Changes** → rmpc triggers `on_song_change.sh`
+2. **Extract Album Art** → `rmpc albumart` saves cover to `/tmp/rmpc/current_cover`
+3. **Analyze Colors** → `rmpc-theme-gen` runs K-means clustering in CIELAB space
+4. **Map to Roles** → Colors assigned to UI elements using HSV/Lab properties
+5. **Generate Theme** → RON file written to `~/.config/rmpc/themes/current-song.ron`
+6. **Hot Reload** → rmpc automatically applies the new theme
+
+## Color Mapping Algorithm
+
+- **Background**: Most dominant color with low saturation (S < 0.4)
+- **Text**: Highest contrast against background (≥ 4.5:1 WCAG AA)
+- **Accent**: High saturation color with good contrast (≥ 3.0:1)
+- **Border**: Mid-saturation color perceptually distinct from background (ΔE > 20)
+- **Active**: Bright, saturated color for selected items (V > 0.5, S > 0.3)
+
+## Project Structure
+
+```
+theme-switcher/
+├── src/
+│   ├── rmpc_theme_gen.rs    # Main binary source
+│   ├── color.rs              # Color conversion and utilities
+│   ├── image_pipeline.rs     # Image loading and sampling
+│   ├── kmeans.rs             # K-means clustering algorithm
+│   └── lib.rs                # Library exports
+├── RAG/                      # Documentation and tracking
+│   ├── AI-EPIC/              # Epic-level requirements
+│   ├── AI-IMP/               # Implementation tickets
+│   └── AI-LOG/               # Session logs
+├── test-results/             # Test data and results
+├── Cargo.toml                # Rust project manifest
+├── build.sh                  # Build and install script
+├── on_song_change.sh         # rmpc integration script
+└── README.md                 # This file
+
+Installed files:
+~/.local/bin/rmpc-theme-gen              # Binary (2.2MB)
+~/.config/rmpc/on_song_change.sh         # Integration script
+~/.config/rmpc/themes/current-song.ron   # Generated theme
+~/.config/rmpc/theme-switcher.log        # Debug logs
+```
+
+## Logs
+
+View theme generation activity:
+
+```bash
+tail -f ~/.config/rmpc/theme-switcher.log
+```
+
+Log format:
+```
+[2025-09-29 22:13:59] ========== Song Change Detected ==========
+[2025-09-29 22:13:59] File: /path/to/song.mp3
+[2025-09-29 22:13:59] Artist: Artist Name
+[2025-09-29 22:13:59] Title: Song Title
+[2025-09-29 22:13:59] Extracting album art...
+[2025-09-29 22:13:59] Album art extracted successfully
+[2025-09-29 22:13:59] Generating theme...
+[2025-09-29 22:13:59] Theme generated successfully
+[2025-09-29 22:13:59] ========== Theme Update Complete ==========
+```
+
+## Manual Usage
+
+Generate theme from any image:
+
+```bash
+rmpc-theme-gen \
+  --image /path/to/album-art.jpg \
+  --k 8 \
+  --space CIELAB \
+  --theme-output ~/.config/rmpc/themes/my-theme.ron
+```
+
+Options:
+- `--image` (required): Path to album art image
+- `--k` (default: 8): Number of color clusters to extract
+- `--space` (default: CIELAB): Color space (CIELAB, RGB, HSL, HSV, YUV, CIELUV)
+- `--theme-output`: Path to output theme file (generates RON format)
+- `--output`: Path to output JSON analysis (optional)
+
+## Performance
+
+- **Generation time**: ~10ms (tested, target: <500ms)
+- **Theme file size**: ~5.4KB
+- **Binary size**: 2.2MB (release build)
+- **Memory usage**: Minimal, processes images in-memory
+- **Contrast ratios**: WCAG AA 4.5:1 achieved in all tests
+
+## Testing
+
+Test results available at:
+```
+~/.config/rmpc/theme-switcher/test-results/TEST-RESULTS.md
+```
+
+Run tests:
+```bash
+~/.config/rmpc/theme-switcher/test-results/run-tests.sh
+```
+
+## Troubleshooting
+
+**Theme not changing:**
+1. Check logs: `tail ~/.config/rmpc/theme-switcher.log`
+2. Verify script is executable: `ls -l ~/.config/rmpc/on_song_change.sh`
+3. Check config: `grep on_song_change ~/.config/rmpc/config.ron`
+4. Test manually: `FILE=/tmp/test.mp3 ARTIST=Test TITLE=Song ~/.config/rmpc/on_song_change.sh`
+
+**Album art not found:**
+- Script will log "ERROR: Album art extraction failed"
+- Theme remains unchanged
+- Playback continues normally
+
+**Binary not found:**
+- Set environment variable: `export RMPC_THEME_GEN_PATH=/path/to/rmpc-theme-gen`
+- Or add to PATH: `export PATH="$HOME/.local/bin:$PATH"`
+
+## Architecture
+
+```
+┌──────────────┐
+│  rmpc plays  │
+│   new song   │
+└──────┬───────┘
+       │
+       ▼
+┌──────────────────────┐
+│  on_song_change.sh   │
+│  - Check state       │
+│  - Extract art       │
+│  - Call generator    │
+└──────┬───────────────┘
+       │
+       ▼
+┌──────────────────────┐
+│  rmpc-theme-gen      │
+│  - K-means cluster   │
+│  - Color mapping     │
+│  - RON generation    │
+└──────┬───────────────┘
+       │
+       ▼
+┌──────────────────────┐
+│  current-song.ron    │
+│  - Valid RON theme   │
+│  - rmpc hot-reloads  │
+└──────────────────────┘
+```
+
+## Documentation
+
+- **AI-EPIC**: `/home/golem/.config/rmpc/theme-switcher/RAG/AI-EPIC/AI-EPIC-001-dynamic-album-art-theme-generation.md`
+- **Progress**: `/home/golem/.config/rmpc/theme-switcher/RAG/PROGRESS.md`
+- **Session Log**: `/home/golem/.config/rmpc/theme-switcher/RAG/2025-09-29-LOG-AI-dynamic-theme-generation-implementation.md`
+- **Test Results**: `/home/golem/.config/rmpc/theme-switcher/test-results/TEST-RESULTS.md`
+
+## Implementation Status
+
+- ✅ AI-IMP-001: Rust CLI tool
+- ✅ AI-IMP-002: Color mapping algorithm
+- ✅ AI-IMP-003: RON theme generation
+- ✅ AI-IMP-004: Shell wrapper script
+- ✅ AI-IMP-005: Integration testing
+- ✅ AI-IMP-006: Error handling and robustness (image format detection fixed)
+
+## Credits
+
+This project is built using K-means color extraction algorithms extracted from the [color-abstract-via-multidim-KMeans](https://github.com/yourusername/color-abstract-via-multidim-KMeans) project.
+
+**Source modules** (`color.rs`, `kmeans.rs`, `image_pipeline.rs`) were extracted and adapted to create a standalone theme generator for rmpc.
+
+**Color Science:**
+- Color spaces: CIELAB (perceptually uniform), HSV (hue/saturation), RGB
+- Contrast: WCAG 2.1 guidelines (4.5:1 minimum ratio)
+- Perceptual distance: CIE76 Delta E
+
+**Original K-means Implementation Credits:**
+The K-means clustering with SIMD optimizations and multi-dimensional color space support is based on the color-abstract-via-multidim-KMeans project.
+
+## License
+
+See project license.

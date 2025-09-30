@@ -1,0 +1,27 @@
+[package]
+name = "rmpc-theme-gen"
+version = "1.0.0"
+edition = "2021"
+authors = ["rmpc-theme-switcher"]
+description = "Dynamic theme generator for rmpc music player using K-means color extraction"
+license = "MIT"
+
+[[bin]]
+name = "rmpc-theme-gen"
+path = "src/rmpc_theme_gen.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+anyhow = "1.0"
+rand = { version = "0.8", features = ["small_rng"] }
+rayon = "1.8"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+clap = { version = "4.5", features = ["derive"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
