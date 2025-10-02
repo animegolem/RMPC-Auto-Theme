@@ -51,4 +51,4 @@ Deliver generator-side mitigation that hides residual gutters and enforces minim
 - [ ] AI-IMP-007: Scrollbar gutter mitigation via background-aligned styles and opt-out flag.
 - [ ] AI-IMP-008: Highlight contrast guardrails with adjustment/fallback logic.
 - [ ] AI-IMP-009: Regression testing and documentation updates for phase-two behaviour.
-- [ ] AI-IMP-010: Contingency plan for upstream rmpc scrollbar clearing patch.
+- [ ] AI-IMP-010: Contingency plan for upstream rmpc scrollbar clearing patch (`AI-EPIC-002-scrollbar-contingency.md`).

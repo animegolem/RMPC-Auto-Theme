@@ -5,7 +5,7 @@ tags:
   - Implementation
   - theme-generation
   - ui-polish
-kanban_status: backlog
+kanban_status: cancelled
 depends_on: AI-EPIC-002
 confidence_score: 0.6
 created_date: 2025-09-30
@@ -55,6 +55,6 @@ Before marking an item complete on the checklist MUST **stop** and **think**. Ha
 **AND** the JSON metadata records the opt-out.
 
 ### Issues Encountered 
-_None yet._
 
+**RESOLUTION REQUIRED CHANGES TO RMPC directly as an upstream PR**
 <!-- Repeat the Issue pattern above as needed based on the needs of the users request.  --> 

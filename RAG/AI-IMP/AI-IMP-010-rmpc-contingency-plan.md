@@ -5,7 +5,7 @@ tags:
   - Implementation
   - upstream
   - documentation
-kanban_status: backlog
+kanban_status: completed
 depends_on: AI-EPIC-002
 confidence_score: 0.8
 created_date: 2025-09-30
@@ -34,9 +34,9 @@ Review rmpc panes that reserve scrollbars, identify injection points for `Clear`
 <CRITICAL_RULE>
 Before marking an item complete on the checklist MUST **stop** and **think**. Have you validated all aspects are **implemented** and **tested**? 
 </CRITICAL_RULE> 
-- [ ] Audit rmpc scrollbar rendering locations and note required edits.
-- [ ] Draft the contingency markdown outlining code changes, testing, and submission steps.
-- [ ] Cross-link the document from the epic for discoverability.
+- [x] Audit rmpc scrollbar rendering locations and note required edits.
+- [x] Draft the contingency markdown outlining code changes, testing, and submission steps.
+- [x] Cross-link the document from the epic for discoverability.
  
 ### Acceptance Criteria
 **Scenario:** Future decision to patch rmpc.

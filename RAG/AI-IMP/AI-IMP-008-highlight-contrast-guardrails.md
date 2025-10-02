@@ -23,7 +23,7 @@ Current accent and active colors can fall below readable contrast ratios, especi
 - UI rendering changes in rmpc itself.
 
 ### Design/Approach  
-Enhance `select_accent_color` / `select_active_item_color` with scoring that rejects clusters below threshold, tries alternate clusters, and, if none qualify, performs lightness adjustments in Lab space while keeping hue/saturation within bounds. Fallback to blending accent with text/background when adjustments hit gamut limits. Record contrast metrics in JSON output for validation.
+Enhance `select_accent_color` / `select_active_item_color` with scoring that rejects clusters below threshold, tries alternate clusters, and, if none qualify, performs lightness adjustments in Lab space while keeping hue/saturation within bounds. Increase the default cluster count (e.g. k=12) so more candidate colors are available before adjustments kick in. Require the highlight foreground to achieve ≥4.5:1 against background and enforce ≥4.5:1 contrast + ΔE ≥ 25 between accent and active selections so stacked states stay legible. Fallback to blending accent with text/background when adjustments hit gamut limits. Record contrast metrics in JSON output for validation.
 
 ### Files to Touch
 - `src/rmpc_theme_gen.rs`: update selection logic, add adjustment helpers.
@@ -35,17 +35,17 @@ Enhance `select_accent_color` / `select_active_item_color` with scoring that rej
 <CRITICAL_RULE>
 Before marking an item complete on the checklist MUST **stop** and **think**. Have you validated all aspects are **implemented** and **tested**? 
 </CRITICAL_RULE> 
-- [ ] Update accent/active selection algorithms to enforce contrast thresholds.
-- [ ] Implement Lab lightness adjustment helper with bounds checking.
-- [ ] Add fallback path blending toward text/background when clusters fail.
-- [ ] Emit contrast metrics in JSON output for verification.
-- [ ] Document the new guarantees and configuration in README/docs.
+- [x] Update accent/active selection algorithms to enforce contrast thresholds.
+- [x] Implement Lab lightness adjustment helper with bounds checking.
+- [x] Add fallback path blending toward text/background when clusters fail.
+- [x] Emit contrast metrics in JSON output for verification.
+- [x] Document the new guarantees and configuration in README/docs.
  
 ### Acceptance Criteria
 **Scenario:** Theme generated from dark album art.
 **GIVEN** input art yields low-light palettes,
 **WHEN** the theme is generated,
-**THEN** the accent and active colors achieve ≥4.5:1 contrast with text and ≥3.0:1 with background (validated via automated test output).
+**THEN** the accent and active colors achieve ≥4.5:1 contrast with text and ≥3.0:1 with background (validated via automated test output) without dropping below the new default k value.
 
 **Scenario:** No cluster meets thresholds.
 **GIVEN** all clusters fail the thresholds,

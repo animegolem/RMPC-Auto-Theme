@@ -57,6 +57,14 @@ Your rmpc config is already configured:
 
 Just play music in rmpc! The theme will automatically update when songs change.
 
+The on_song_change hook computes a SHA-256 of the extracted cover and skips generation when the image is unchanged from the last run. To bypass this optimization for debugging, set `RMPC_THEME_FORCE=1` in the environment before launching rmpc or invoking the hook.
+
+Check the generator version anytime with:
+
+```bash
+./rmpc-theme-gen --version
+```
+
 ## How It Works
 
 1. **Song Changes** → rmpc triggers `on_song_change.sh`
@@ -73,6 +81,7 @@ Just play music in rmpc! The theme will automatically update when songs change.
 - **Accent**: High saturation color with good contrast (≥ 3.0:1)
 - **Border**: Mid-saturation color perceptually distinct from background (ΔE > 20)
 - **Active**: Bright, saturated color for selected items (V > 0.5, S > 0.3)
+- **Guardrails**: Accent/active colors must meet ≥ 3.0:1 against the background and ≥ 4.5:1 against text; active backgrounds must also keep ≥ 4.5:1 contrast and ΔE ≥ 25 from the accent so highlighted-current rows stay readable. If clusters fail, fallback synthesis adjusts lightness to keep highlights readable.
 
 ## Project Structure
 
@@ -129,14 +138,14 @@ Generate theme from any image:
 ```bash
 rmpc-theme-gen \
   --image /path/to/album-art.jpg \
-  --k 8 \
+  --k 12 \
   --space CIELAB \
   --theme-output ~/.config/rmpc/themes/my-theme.ron
 ```
 
 Options:
 - `--image` (required): Path to album art image
-- `--k` (default: 8): Number of color clusters to extract
+- `--k` (default: 12): Number of color clusters to extract
 - `--space` (default: CIELAB): Color space (CIELAB, RGB, HSL, HSV, YUV, CIELUV)
 - `--theme-output`: Path to output theme file (generates RON format)
 - `--output`: Path to output JSON analysis (optional)
@@ -245,6 +254,7 @@ This project is built using K-means color extraction algorithms extracted from t
 **Original K-means Implementation Credits:**
 The K-means clustering with SIMD optimizations and multi-dimensional color space support is based on the color-abstract-via-multidim-KMeans project.
 
-## License
+## License & Attributions
 
-See project license.
+- Licensed under the MIT License (`LICENSE`).
+- Third-party algorithms and references are documented in `ATTRIBUTIONS.md` and must accompany redistributions.

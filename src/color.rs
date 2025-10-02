@@ -1,5 +1,10 @@
 //! Color space conversions for the Rust compute core.
 //! All transforms assume sRGB primaries with a D65 white point (IEC 61966-2-1).
+//!
+//! Color space algorithms based on:
+//! - Color-tool by L. Jégou (CC BY 3.0): https://github.com/ljegou/Color-tool
+//! - CIE 15:2018 (Colorimetry, 4th Edition) for LAB/LUV
+//! - IEC 61966-2-1:1999 for sRGB gamma and XYZ transforms
 
 const EPSILON: f32 = 1e-6;
 const XYZ_WHITE: [f32; 3] = [0.95047, 1.0, 1.08883]; // D65
@@ -169,24 +174,25 @@ pub fn luv_to_rgb8(luv: [f32; 3]) -> [u8; 3] {
 }
 
 pub fn rgb8_to_yuv(rgb: [u8; 3]) -> [f32; 3] {
-    let r = rgb[0] as f32 / 255.0;
-    let g = rgb[1] as f32 / 255.0;
-    let b = rgb[2] as f32 / 255.0;
-    [
-        0.299 * r + 0.587 * g + 0.114 * b,
-        -0.14713 * r - 0.28886 * g + 0.436 * b,
-        0.615 * r - 0.51499 * g - 0.10001 * b,
-    ]
+    let r = rgb[0] as f32;
+    let g = rgb[1] as f32;
+    let b = rgb[2] as f32;
+    // BT.601 coefficients (matching CC BY 3.0 Color-tool reference)
+    let y = r * 0.299 + g * 0.587 + b * 0.114;
+    let u = r * -0.168736 + g * -0.331264 + b * 0.5 + 128.0;
+    let v = r * 0.5 + g * -0.418688 + b * -0.081312 + 128.0;
+    [y, u, v]
 }
 
 pub fn yuv_to_rgb8(yuv: [f32; 3]) -> [u8; 3] {
     let y = yuv[0];
     let u = yuv[1];
     let v = yuv[2];
-    let r = y + 1.13983 * v;
-    let g = y - 0.39465 * u - 0.58060 * v;
-    let b = y + 2.03211 * u;
-    [to_u8(r), to_u8(g), to_u8(b)]
+    // BT.601 inverse (matching CC BY 3.0 Color-tool reference)
+    let r = y + 1.4075 * (v - 128.0);
+    let g = y - 0.3455 * (u - 128.0) - 0.7169 * (v - 128.0);
+    let b = y + 1.779 * (u - 128.0);
+    [to_u8(r / 255.0), to_u8(g / 255.0), to_u8(b / 255.0)]
 }
 
 pub fn rgb8_to_hsl(rgb: [u8; 3]) -> [f32; 3] {
