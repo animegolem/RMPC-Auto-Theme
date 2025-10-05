@@ -1,0 +1,106 @@
+{
+  "generatedAt": "2025-09-24T20:46:46.799034468+00:00",
+  "jobs": [
+    {
+      "label": "1.5mb example",
+      "imageFile": "1.5m-example.png",
+      "parity": {
+        "sampleCount": 10000,
+        "meanAbsL": 0.0011939019,
+        "meanAbsA": 0.0061168955,
+        "meanAbsB": 0.00827204,
+        "maxAbsL": 0.0076522827,
+        "maxAbsA": 0.01626587,
+        "maxAbsB": 0.012125015,
+        "meanDelta": 0.010590701,
+        "maxDelta": 0.019550774,
+        "buckets": {
+          "under01": 10000,
+          "under025": 0,
+          "under10": 0,
+          "over10": 0
+        }
+      }
+    },
+    {
+      "label": "4mb example",
+      "imageFile": "4mb-example.png",
+      "parity": {
+        "sampleCount": 10000,
+        "meanAbsL": 0.0026057,
+        "meanAbsA": 0.006336897,
+        "meanAbsB": 0.008617821,
+        "maxAbsL": 0.0036621094,
+        "maxAbsA": 0.009300232,
+        "maxAbsB": 0.011705399,
+        "meanDelta": 0.011108931,
+        "maxDelta": 0.014398101,
+        "buckets": {
+          "under01": 10000,
+          "under025": 0,
+          "under10": 0,
+          "over10": 0
+        }
+      }
+    },
+    {
+      "label": "11mb example",
+      "imageFile": "11mb-example.png",
+      "parity": {
+        "sampleCount": 10000,
+        "meanAbsL": 0.00088581064,
+        "meanAbsA": 0.0023272482,
+        "meanAbsB": 0.0035054823,
+        "maxAbsL": 0.00605011,
+        "maxAbsA": 0.012756348,
+        "maxAbsB": 0.010418892,
+        "meanDelta": 0.004478716,
+        "maxDelta": 0.015194048,
+        "buckets": {
+          "under01": 10000,
+          "under025": 0,
+          "under10": 0,
+          "over10": 0
+        }
+      }
+    },
+    {
+      "label": "24mb example",
+      "imageFile": "24mb-example.PNG",
+      "parity": {
+        "sampleCount": 10000,
+        "meanAbsL": 0.0016542512,
+        "meanAbsA": 0.0056972704,
+        "meanAbsB": 0.0071764425,
+        "maxAbsL": 0.0069122314,
+        "maxAbsA": 0.0158844,
+        "maxAbsB": 0.014554977,
+        "meanDelta": 0.009536153,
+        "maxDelta": 0.02198037,
+        "buckets": {
+          "under01": 10000,
+          "under025": 0,
+          "under10": 0,
+          "over10": 0
+        }
+      }
+    }
+  ],
+  "aggregate": {
+    "sampleCount": 40000,
+    "meanAbsL": 0.0015849159,
+    "meanAbsA": 0.005119578,
+    "meanAbsB": 0.0068929465,
+    "maxAbsL": 0.0076522827,
+    "maxAbsA": 0.01626587,
+    "maxAbsB": 0.014554977,
+    "meanDelta": 0.008928625,
+    "maxDelta": 0.02198037,
+    "buckets": {
+      "under01": 40000,
+      "under025": 0,
+      "under10": 0,
+      "over10": 0
+    }
+  }
+}

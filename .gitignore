@@ -27,3 +27,4 @@ test-results/*.jpeg
 *.tmp
 /tmp/
 /pkgs/
+/bench-assets/
