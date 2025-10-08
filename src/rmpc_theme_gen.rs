@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::env;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -46,6 +47,16 @@ struct RoleAssignment {
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+const ACCENT_BG_MIN: f32 = 3.0;
+const ACCENT_TEXT_MIN: f32 = 4.5;
+const ACTIVE_BG_MIN: f32 = 2.0;
+const ACTIVE_TEXT_MIN: f32 = 4.5;
+const PEER_CONTRAST_MIN: f32 = 4.5;
+const PEER_DELTA_E_MIN: f32 = 25.0;
+const BRIGHTNESS_SEPARATION_MIN: f32 = 25.0;
+const RELAXED_PEER_CONTRAST_MIN: f32 = 3.5;
+const RELAXED_PEER_DELTA_E_MIN: f32 = 20.0;
+
 #[derive(Parser, Debug)]
 #[command(name = "rmpc-theme-gen", version = APP_VERSION)]
 #[command(about = "Generate rmpc theme from album art", long_about = None)]
@@ -73,6 +84,10 @@ struct Args {
     /// Disable scrollbar block in generated theme
     #[arg(long)]
     disable_scrollbar: bool,
+
+    /// Emit debug diagnostics (can also be set via RMPC_THEME_DEBUG=1)
+    #[arg(long)]
+    debug: bool,
 }
 
 #[derive(Debug, Serialize, Clone, Copy)]
@@ -104,6 +119,15 @@ struct ThemeGenOutput {
     duration_ms: f64,
     color_space: String,
     scrollbar_enabled: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    debug: Option<DebugOutput>,
+}
+
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct DebugOutput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pairwise: Option<PairwiseDebug>,
 }
 
 /// Select background color: prefer most dominant with reasonable saturation/lightness
@@ -149,6 +173,108 @@ struct Candidate {
 
 fn sort_candidates_desc(candidates: &mut Vec<Candidate>) {
     candidates.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(Ordering::Equal));
+}
+
+#[derive(Clone, Debug)]
+struct RoleColorCandidate {
+    lab: [f32; 3],
+    source_cluster_index: Option<usize>,
+    origin_label: String,
+    provenance_rank: u8,
+    base_score: f32,
+}
+
+impl RoleColorCandidate {
+    fn confidence(&self) -> f32 {
+        match self.provenance_rank {
+            0 => {
+                if self.base_score > 2.0 {
+                    0.9
+                } else {
+                    0.75
+                }
+            }
+            1 => 0.7,
+            _ => 0.45,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+struct PairwiseMetrics {
+    accent_bg: f32,
+    accent_text: f32,
+    accent_active: f32,
+    active_bg: f32,
+    active_text: f32,
+    delta_e: f32,
+    accent_l: f32,
+    active_l: f32,
+}
+
+impl PairwiseMetrics {
+    fn min_contrast(&self) -> f32 {
+        self.accent_bg
+            .min(self.accent_text)
+            .min(self.accent_active)
+            .min(self.active_bg)
+            .min(self.active_text)
+    }
+
+    fn brightness_separation(&self) -> f32 {
+        (self.accent_l - self.active_l).abs()
+    }
+
+    fn avg_contrast(&self) -> f32 {
+        (self.accent_bg + self.accent_text + self.accent_active + self.active_bg + self.active_text)
+            / 5.0
+    }
+}
+
+#[derive(Clone, Debug)]
+struct PairwiseResult {
+    accent: RoleColorCandidate,
+    active: RoleColorCandidate,
+    metrics: PairwiseMetrics,
+    provenance_score: u8,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct PairwiseDebugEntry {
+    accent_hex: String,
+    accent_origin: String,
+    active_hex: String,
+    active_origin: String,
+    accent_bg: f32,
+    accent_text: f32,
+    accent_active: f32,
+    active_bg: f32,
+    active_text: f32,
+    delta_e: f32,
+    min_contrast: f32,
+    brightness_separation: f32,
+    provenance_score: u8,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct PairwiseDebug {
+    evaluated_pairs: usize,
+    pass_mode: String,
+    winning_pair: PairwiseDebugEntry,
+    top_pairs: Vec<PairwiseDebugEntry>,
+    accent_candidates: Vec<PairCandidateDebug>,
+    active_candidates: Vec<PairCandidateDebug>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct PairCandidateDebug {
+    hex: String,
+    origin: String,
+    provenance_rank: u8,
+    base_score: f32,
 }
 
 /// Rank accent color candidates: high saturation with good contrast
@@ -248,6 +374,17 @@ struct GuardrailConfig {
     max_adjust_steps: usize,
 }
 
+#[derive(Clone, Copy)]
+struct PairwiseGuardrails {
+    min_accent_vs_bg: f32,
+    min_accent_vs_text: f32,
+    min_active_vs_bg: f32,
+    min_active_vs_text: f32,
+    min_peer_contrast: f32,
+    min_peer_delta_e: f32,
+    min_brightness_separation: f32,
+}
+
 fn contrast_metrics(lab: [f32; 3], bg_lab: [f32; 3], text_lab: [f32; 3]) -> (f32, f32) {
     let contrast_bg = color::calculate_contrast_ratio(lab, bg_lab);
     let contrast_text = color::calculate_contrast_ratio(lab, text_lab);
@@ -280,13 +417,19 @@ fn meets_guardrails(
     true
 }
 
-fn adjust_lightness_for_contrast(
+fn lab_close(a: [f32; 3], b: [f32; 3], tol: f32) -> bool {
+    color::delta_e_cie76(a, b) < tol
+}
+
+fn collect_adjusted_variants(
     base_lab: [f32; 3],
     bg_lab: [f32; 3],
     text_lab: [f32; 3],
     config: &GuardrailConfig,
     peer_lab: Option<[f32; 3]>,
-) -> Option<[f32; 3]> {
+) -> Vec<([f32; 3], f32)> {
+    let mut variants = Vec::new();
+
     for direction in [-1.0f32, 1.0f32] {
         let mut candidate = base_lab;
         for _ in 0..config.max_adjust_steps {
@@ -306,11 +449,38 @@ fn adjust_lightness_for_contrast(
                 peer_lab.map(|_| peer_contrast),
                 peer_lab.map(|_| peer_delta_e),
             ) {
-                return Some(candidate);
+                if !variants
+                    .iter()
+                    .any(|(existing, _)| lab_close(*existing, candidate, 0.5))
+                {
+                    variants.push((candidate, candidate[0] - base_lab[0]));
+                }
+                break;
             }
         }
     }
-    None
+
+    variants
+}
+
+fn push_candidate_if_unique(candidates: &mut Vec<RoleColorCandidate>, candidate: RoleColorCandidate) {
+    if !candidates
+        .iter()
+        .any(|existing| lab_close(existing.lab, candidate.lab, 0.5))
+    {
+        candidates.push(candidate);
+    }
+}
+
+fn cmp_f32_desc(a: f32, b: f32) -> Ordering {
+    match (a.is_nan(), b.is_nan()) {
+        (true, true) => Ordering::Equal,
+        (true, false) => Ordering::Less,
+        (false, true) => Ordering::Greater,
+        (false, false) => b
+            .partial_cmp(&a)
+            .unwrap_or(Ordering::Equal),
+    }
 }
 
 fn synthesize_color_between(
@@ -347,6 +517,508 @@ fn synthesize_color_between(
     }
     None
 }
+
+fn build_accent_candidates(
+    clusters: &[ColorCluster],
+    bg_lab: [f32; 3],
+    text_lab: [f32; 3],
+    used_indices: &[usize],
+) -> Vec<RoleColorCandidate> {
+    let guard = GuardrailConfig {
+        min_contrast_bg: ACCENT_BG_MIN,
+        min_contrast_text: ACCENT_TEXT_MIN,
+        min_contrast_peer: None,
+        min_delta_e_peer: None,
+        adjust_step: 4.0,
+        max_adjust_steps: 12,
+    };
+
+    let ranked = rank_accent_candidates(clusters, bg_lab, used_indices);
+    let mut results: Vec<RoleColorCandidate> = Vec::new();
+
+    for candidate in ranked.iter().take(12) {
+        let cluster = &clusters[candidate.index];
+        let (contrast_bg, contrast_text) = contrast_metrics(cluster.lab, bg_lab, text_lab);
+        if meets_guardrails(contrast_bg, contrast_text, &guard, None, None) {
+            push_candidate_if_unique(
+                &mut results,
+                RoleColorCandidate {
+                    lab: cluster.lab,
+                    source_cluster_index: Some(candidate.index),
+                    origin_label: format!("cluster:{}", candidate.index),
+                    provenance_rank: 0,
+                    base_score: candidate.score,
+                },
+            );
+        }
+
+        for (adjusted, delta_l) in collect_adjusted_variants(
+            cluster.lab,
+            bg_lab,
+            text_lab,
+            &guard,
+            None,
+        ) {
+            push_candidate_if_unique(
+                &mut results,
+                RoleColorCandidate {
+                    lab: adjusted,
+                    source_cluster_index: Some(candidate.index),
+                    origin_label: format!("adjusted:{}:{:+.1}", candidate.index, delta_l),
+                    provenance_rank: 1,
+                    base_score: candidate.score * 0.85,
+                },
+            );
+        }
+    }
+
+    if let Some(lab) = synthesize_color_between(bg_lab, text_lab, &guard, None) {
+        push_candidate_if_unique(
+            &mut results,
+            RoleColorCandidate {
+                lab,
+                source_cluster_index: None,
+                origin_label: "synthetic:midline".to_string(),
+                provenance_rank: 2,
+                base_score: 0.5,
+            },
+        );
+    }
+
+    for l in [25.0f32, 75.0f32] {
+        let candidate_lab = [l, 0.0, 0.0];
+        let (contrast_bg, contrast_text) = contrast_metrics(candidate_lab, bg_lab, text_lab);
+        if meets_guardrails(contrast_bg, contrast_text, &guard, None, None) {
+            push_candidate_if_unique(
+                &mut results,
+                RoleColorCandidate {
+                    lab: candidate_lab,
+                    source_cluster_index: None,
+                    origin_label: format!("synthetic:gray-{:.0}", l),
+                    provenance_rank: 2,
+                    base_score: 0.35,
+                },
+            );
+        }
+    }
+
+    results
+}
+
+fn build_active_candidates(
+    clusters: &[ColorCluster],
+    bg_lab: [f32; 3],
+    text_lab: [f32; 3],
+    used_indices: &[usize],
+) -> Vec<RoleColorCandidate> {
+    let guard = GuardrailConfig {
+        min_contrast_bg: ACTIVE_BG_MIN,
+        min_contrast_text: ACTIVE_TEXT_MIN,
+        min_contrast_peer: None,
+        min_delta_e_peer: None,
+        adjust_step: 4.0,
+        max_adjust_steps: 12,
+    };
+
+    let ranked = rank_active_item_candidates(clusters, bg_lab, used_indices);
+    let mut results: Vec<RoleColorCandidate> = Vec::new();
+
+    for candidate in ranked.iter().take(12) {
+        let cluster = &clusters[candidate.index];
+        let (contrast_bg, contrast_text) = contrast_metrics(cluster.lab, bg_lab, text_lab);
+        if meets_guardrails(contrast_bg, contrast_text, &guard, None, None) {
+            push_candidate_if_unique(
+                &mut results,
+                RoleColorCandidate {
+                    lab: cluster.lab,
+                    source_cluster_index: Some(candidate.index),
+                    origin_label: format!("cluster:{}", candidate.index),
+                    provenance_rank: 0,
+                    base_score: candidate.score,
+                },
+            );
+        }
+
+        for (adjusted, delta_l) in collect_adjusted_variants(
+            cluster.lab,
+            bg_lab,
+            text_lab,
+            &guard,
+            None,
+        ) {
+            push_candidate_if_unique(
+                &mut results,
+                RoleColorCandidate {
+                    lab: adjusted,
+                    source_cluster_index: Some(candidate.index),
+                    origin_label: format!("adjusted:{}:{:+.1}", candidate.index, delta_l),
+                    provenance_rank: 1,
+                    base_score: candidate.score * 0.8,
+                },
+            );
+        }
+    }
+
+    if let Some(lab) = synthesize_color_between(bg_lab, text_lab, &guard, None) {
+        push_candidate_if_unique(
+            &mut results,
+            RoleColorCandidate {
+                lab,
+                source_cluster_index: None,
+                origin_label: "synthetic:midline".to_string(),
+                provenance_rank: 2,
+                base_score: 0.4,
+            },
+        );
+    }
+
+    for l in [30.0f32, 50.0f32, 70.0f32] {
+        let candidate_lab = [l, 0.0, 0.0];
+        let (contrast_bg, contrast_text) = contrast_metrics(candidate_lab, bg_lab, text_lab);
+        if meets_guardrails(contrast_bg, contrast_text, &guard, None, None) {
+            push_candidate_if_unique(
+                &mut results,
+                RoleColorCandidate {
+                    lab: candidate_lab,
+                    source_cluster_index: None,
+                    origin_label: format!("synthetic:gray-{:.0}", l),
+                    provenance_rank: 2,
+                    base_score: 0.35,
+                },
+            );
+        }
+    }
+
+    results
+}
+
+fn candidate_list_for_debug(candidates: &[RoleColorCandidate]) -> Vec<PairCandidateDebug> {
+    candidates
+        .iter()
+        .map(|candidate| {
+            let rgb = color::lab_to_rgb8(candidate.lab);
+            PairCandidateDebug {
+                hex: color::rgb_to_hex(rgb),
+                origin: candidate.origin_label.clone(),
+                provenance_rank: candidate.provenance_rank,
+                base_score: candidate.base_score,
+            }
+        })
+        .collect()
+}
+
+fn build_pair_metrics(
+    accent_lab: [f32; 3],
+    active_lab: [f32; 3],
+    bg_lab: [f32; 3],
+    text_lab: [f32; 3],
+) -> PairwiseMetrics {
+    PairwiseMetrics {
+        accent_bg: color::calculate_contrast_ratio(accent_lab, bg_lab),
+        accent_text: color::calculate_contrast_ratio(accent_lab, text_lab),
+        accent_active: color::calculate_contrast_ratio(accent_lab, active_lab),
+        active_bg: color::calculate_contrast_ratio(active_lab, bg_lab),
+        active_text: color::calculate_contrast_ratio(active_lab, text_lab),
+        delta_e: color::delta_e_cie76(accent_lab, active_lab),
+        accent_l: accent_lab[0],
+        active_l: active_lab[0],
+    }
+}
+
+fn passes_pairwise_guardrails(metrics: &PairwiseMetrics, guard: PairwiseGuardrails) -> bool {
+    if metrics.accent_bg < guard.min_accent_vs_bg {
+        return false;
+    }
+    if metrics.accent_text < guard.min_accent_vs_text {
+        return false;
+    }
+    if metrics.active_bg < guard.min_active_vs_bg {
+        return false;
+    }
+    if metrics.active_text < guard.min_active_vs_text {
+        return false;
+    }
+    if metrics.accent_active < guard.min_peer_contrast {
+        return false;
+    }
+    if metrics.delta_e < guard.min_peer_delta_e {
+        return false;
+    }
+    if metrics.brightness_separation() < guard.min_brightness_separation {
+        return false;
+    }
+    true
+}
+
+fn compare_pairwise_results(lhs: &PairwiseResult, rhs: &PairwiseResult) -> Ordering {
+    cmp_f32_desc(lhs.metrics.min_contrast(), rhs.metrics.min_contrast())
+        .then_with(|| cmp_f32_desc(lhs.metrics.brightness_separation(), rhs.metrics.brightness_separation()))
+        .then_with(|| lhs.provenance_score.cmp(&rhs.provenance_score))
+        .then_with(|| cmp_f32_desc(lhs.metrics.avg_contrast(), rhs.metrics.avg_contrast()))
+        .then_with(|| {
+            let lhs_score = lhs.accent.base_score + lhs.active.base_score;
+            let rhs_score = rhs.accent.base_score + rhs.active.base_score;
+            cmp_f32_desc(lhs_score, rhs_score)
+        })
+}
+
+fn make_debug_entry(result: &PairwiseResult) -> PairwiseDebugEntry {
+    let accent_rgb = color::lab_to_rgb8(result.accent.lab);
+    let active_rgb = color::lab_to_rgb8(result.active.lab);
+    PairwiseDebugEntry {
+        accent_hex: color::rgb_to_hex(accent_rgb),
+        accent_origin: result.accent.origin_label.clone(),
+        active_hex: color::rgb_to_hex(active_rgb),
+        active_origin: result.active.origin_label.clone(),
+        accent_bg: result.metrics.accent_bg,
+        accent_text: result.metrics.accent_text,
+        accent_active: result.metrics.accent_active,
+        active_bg: result.metrics.active_bg,
+        active_text: result.metrics.active_text,
+        delta_e: result.metrics.delta_e,
+        min_contrast: result.metrics.min_contrast(),
+        brightness_separation: result.metrics.brightness_separation(),
+        provenance_score: result.provenance_score,
+    }
+}
+
+fn solve_with_guardrails(
+    accent_candidates: &[RoleColorCandidate],
+    active_candidates: &[RoleColorCandidate],
+    bg_lab: [f32; 3],
+    text_lab: [f32; 3],
+    guardrails: PairwiseGuardrails,
+    debug_enabled: bool,
+) -> (Option<PairwiseResult>, usize, Vec<PairwiseResult>) {
+    let mut best: Option<PairwiseResult> = None;
+    let mut evaluated = 0usize;
+    let mut passing: Vec<PairwiseResult> = Vec::new();
+
+    for accent in accent_candidates {
+        for active in active_candidates {
+            evaluated += 1;
+            let metrics = build_pair_metrics(accent.lab, active.lab, bg_lab, text_lab);
+            if !passes_pairwise_guardrails(&metrics, guardrails) {
+                continue;
+            }
+
+            let candidate = PairwiseResult {
+                accent: accent.clone(),
+                active: active.clone(),
+                metrics,
+                provenance_score: accent.provenance_rank + active.provenance_rank,
+            };
+
+            match &mut best {
+                Some(current_best) => {
+                    if compare_pairwise_results(&candidate, current_best) == Ordering::Less {
+                        *current_best = candidate.clone();
+                    }
+                }
+                None => best = Some(candidate.clone()),
+            }
+
+            if debug_enabled {
+                passing.push(candidate);
+            }
+        }
+    }
+
+    if debug_enabled {
+        passing.sort_by(|a, b| compare_pairwise_results(a, b));
+        passing.truncate(8);
+    } else {
+        passing.clear();
+    }
+
+    (best, evaluated, passing)
+}
+
+fn select_accent_and_active(
+    clusters: &[ColorCluster],
+    used_indices: &mut Vec<usize>,
+    bg_lab: [f32; 3],
+    text_lab: [f32; 3],
+    debug_enabled: bool,
+) -> (RoleAssignment, RoleAssignment, Option<PairwiseDebug>) {
+    let mut accent_candidates = build_accent_candidates(clusters, bg_lab, text_lab, used_indices);
+    if accent_candidates.is_empty() {
+        accent_candidates.push(RoleColorCandidate {
+            lab: [bg_lab[0].clamp(0.0, 100.0), 0.0, 0.0],
+            source_cluster_index: None,
+            origin_label: "synthetic:bg-neutral".to_string(),
+            provenance_rank: 2,
+            base_score: 0.3,
+        });
+    }
+
+    let mut active_candidates = build_active_candidates(clusters, bg_lab, text_lab, used_indices);
+    if active_candidates.is_empty() {
+        active_candidates.push(RoleColorCandidate {
+            lab: [text_lab[0].clamp(0.0, 100.0), 0.0, 0.0],
+            source_cluster_index: None,
+            origin_label: "synthetic:text-neutral".to_string(),
+            provenance_rank: 2,
+            base_score: 0.3,
+        });
+    }
+
+    let strict_guardrails = PairwiseGuardrails {
+        min_accent_vs_bg: ACCENT_BG_MIN,
+        min_accent_vs_text: ACCENT_TEXT_MIN,
+        min_active_vs_bg: ACTIVE_BG_MIN,
+        min_active_vs_text: ACTIVE_TEXT_MIN,
+        min_peer_contrast: PEER_CONTRAST_MIN,
+        min_peer_delta_e: PEER_DELTA_E_MIN,
+        min_brightness_separation: BRIGHTNESS_SEPARATION_MIN,
+    };
+
+    let mut total_pairs_evaluated = 0usize;
+
+    let (strict_result, strict_evaluated, strict_debug_pairs) = solve_with_guardrails(
+        &accent_candidates,
+        &active_candidates,
+        bg_lab,
+        text_lab,
+        strict_guardrails,
+        debug_enabled,
+    );
+
+    total_pairs_evaluated += strict_evaluated;
+
+    let (result, pass_mode, debug_pairs) = if let Some(res) = strict_result {
+        (res, "strict".to_string(), strict_debug_pairs)
+    } else {
+        let relaxed_guardrails = PairwiseGuardrails {
+            min_accent_vs_bg: ACCENT_BG_MIN,
+            min_accent_vs_text: ACCENT_TEXT_MIN,
+            min_active_vs_bg: ACTIVE_BG_MIN,
+            min_active_vs_text: ACTIVE_TEXT_MIN,
+            min_peer_contrast: RELAXED_PEER_CONTRAST_MIN,
+            min_peer_delta_e: RELAXED_PEER_DELTA_E_MIN,
+            min_brightness_separation: BRIGHTNESS_SEPARATION_MIN * 0.7,
+        };
+
+        let (relaxed_result, relaxed_evaluated, relaxed_debug_pairs) = solve_with_guardrails(
+            &accent_candidates,
+            &active_candidates,
+            bg_lab,
+            text_lab,
+            relaxed_guardrails,
+            debug_enabled,
+        );
+
+        total_pairs_evaluated += relaxed_evaluated;
+
+        if let Some(res) = relaxed_result {
+            (
+                res,
+                "relaxed".to_string(),
+                if debug_enabled {
+                    relaxed_debug_pairs
+                } else {
+                    Vec::new()
+                },
+            )
+        } else {
+            // Final fallback: choose best overall by min contrast even if peer guard not met
+            let mut fallback_best: Option<PairwiseResult> = None;
+            let mut fallback_list: Vec<PairwiseResult> = Vec::new();
+            let mut fallback_evaluated = 0usize;
+            for accent in &accent_candidates {
+                for active in &active_candidates {
+                    fallback_evaluated += 1;
+                    let metrics = build_pair_metrics(accent.lab, active.lab, bg_lab, text_lab);
+                    let candidate = PairwiseResult {
+                        accent: accent.clone(),
+                        active: active.clone(),
+                        metrics,
+                        provenance_score: accent.provenance_rank + active.provenance_rank,
+                    };
+                    match &mut fallback_best {
+                        Some(current) => {
+                            if compare_pairwise_results(&candidate, current) == Ordering::Less {
+                                *current = candidate.clone();
+                            }
+                        }
+                        None => fallback_best = Some(candidate.clone()),
+                    }
+                    if debug_enabled {
+                        fallback_list.push(candidate);
+                    }
+                }
+            }
+
+            if debug_enabled {
+                fallback_list.sort_by(|a, b| compare_pairwise_results(a, b));
+                fallback_list.truncate(8);
+            }
+
+            total_pairs_evaluated += fallback_evaluated;
+
+            (
+                fallback_best.expect("fallback should produce a candidate"),
+                "fallback".to_string(),
+                fallback_list,
+            )
+        }
+    };
+
+    // Build assignments
+    let accent_assignment = role_assignment_from_lab(
+        ColorRole::Accent,
+        result.accent.lab,
+        result.accent.source_cluster_index,
+        result.accent.confidence(),
+        Some(&result.accent.origin_label),
+        Some(bg_lab),
+        Some(text_lab),
+    );
+
+    if let Some(idx) = result.accent.source_cluster_index {
+        if !used_indices.contains(&idx) {
+            used_indices.push(idx);
+        }
+    }
+
+    let active_assignment = role_assignment_from_lab(
+        ColorRole::ActiveItem,
+        result.active.lab,
+        result.active.source_cluster_index,
+        result.active.confidence(),
+        Some(&result.active.origin_label),
+        Some(bg_lab),
+        Some(text_lab),
+    );
+
+    if let Some(idx) = result.active.source_cluster_index {
+        if !used_indices.contains(&idx) {
+            used_indices.push(idx);
+        }
+    }
+
+    let debug = if debug_enabled {
+        let winning_entry = make_debug_entry(&result);
+        let top_entries: Vec<PairwiseDebugEntry> = debug_pairs
+            .iter()
+            .map(|res| make_debug_entry(res))
+            .collect();
+        Some(PairwiseDebug {
+            evaluated_pairs: total_pairs_evaluated,
+            pass_mode,
+            winning_pair: winning_entry,
+            top_pairs: top_entries,
+            accent_candidates: candidate_list_for_debug(&accent_candidates),
+            active_candidates: candidate_list_for_debug(&active_candidates),
+        })
+    } else {
+        None
+    };
+
+    (accent_assignment, active_assignment, debug)
+}
+
+
 
 fn role_assignment_from_lab(
     role: ColorRole,
@@ -398,140 +1070,6 @@ fn clone_for_role(role: ColorRole, base: &RoleAssignment, confidence: f32) -> Ro
         contrast_against_text: base.contrast_against_text,
         origin: base.origin.clone(),
     }
-}
-
-fn resolve_guarded_color(
-    role: ColorRole,
-    clusters: &[ColorCluster],
-    candidates: &[Candidate],
-    used_indices: &mut Vec<usize>,
-    bg_lab: [f32; 3],
-    text_lab: [f32; 3],
-    config: GuardrailConfig,
-    confidence_from_score: impl Fn(f32) -> f32,
-    peer_lab: Option<[f32; 3]>,
-) -> RoleAssignment {
-    for candidate in candidates {
-        let cluster = &clusters[candidate.index];
-        let base_lab = cluster.lab;
-        let (contrast_bg, contrast_text) = contrast_metrics(base_lab, bg_lab, text_lab);
-        let peer_metrics = peer_lab.map(|peer| {
-            (
-                color::calculate_contrast_ratio(base_lab, peer),
-                color::delta_e_cie76(base_lab, peer),
-            )
-        });
-        let (peer_contrast, peer_delta_e) = peer_metrics.unwrap_or((f32::NAN, f32::NAN));
-        if meets_guardrails(
-            contrast_bg,
-            contrast_text,
-            &config,
-            peer_lab.map(|_| peer_contrast),
-            peer_lab.map(|_| peer_delta_e),
-        ) {
-            used_indices.push(candidate.index);
-            return role_assignment_from_lab(
-                role,
-                base_lab,
-                Some(candidate.index),
-                confidence_from_score(candidate.score),
-                Some("cluster"),
-                Some(bg_lab),
-                Some(text_lab),
-            );
-        }
-
-        if let Some(adjusted_lab) =
-            adjust_lightness_for_contrast(base_lab, bg_lab, text_lab, &config, peer_lab)
-        {
-            used_indices.push(candidate.index);
-            return role_assignment_from_lab(
-                role,
-                adjusted_lab,
-                Some(candidate.index),
-                confidence_from_score(candidate.score) * 0.8,
-                Some("adjusted"),
-                Some(bg_lab),
-                Some(text_lab),
-            );
-        }
-    }
-
-    if let Some(lab) = synthesize_color_between(bg_lab, text_lab, &config, peer_lab) {
-        return role_assignment_from_lab(
-            role,
-            lab,
-            None,
-            0.45,
-            Some("synthetic"),
-            Some(bg_lab),
-            Some(text_lab),
-        );
-    }
-
-    if let Some(lab) = adjust_lightness_for_contrast(bg_lab, bg_lab, text_lab, &config, peer_lab) {
-        return role_assignment_from_lab(
-            role,
-            lab,
-            None,
-            0.4,
-            Some("synthetic"),
-            Some(bg_lab),
-            Some(text_lab),
-        );
-    }
-
-    if let Some(lab) = adjust_lightness_for_contrast(text_lab, bg_lab, text_lab, &config, peer_lab)
-    {
-        return role_assignment_from_lab(
-            role,
-            lab,
-            None,
-            0.35,
-            Some("synthetic"),
-            Some(bg_lab),
-            Some(text_lab),
-        );
-    }
-
-    for rgb in [[0u8, 0, 0], [255, 255, 255]] {
-        let lab_candidate = color::rgb8_to_lab(rgb);
-        let (contrast_bg, contrast_text) = contrast_metrics(lab_candidate, bg_lab, text_lab);
-        let peer_metrics = peer_lab.map(|peer| {
-            (
-                color::calculate_contrast_ratio(lab_candidate, peer),
-                color::delta_e_cie76(lab_candidate, peer),
-            )
-        });
-        let (peer_contrast, peer_delta_e) = peer_metrics.unwrap_or((f32::NAN, f32::NAN));
-        if meets_guardrails(
-            contrast_bg,
-            contrast_text,
-            &config,
-            peer_lab.map(|_| peer_contrast),
-            peer_lab.map(|_| peer_delta_e),
-        ) {
-            return role_assignment_from_lab(
-                role,
-                lab_candidate,
-                None,
-                0.3,
-                Some("synthetic"),
-                Some(bg_lab),
-                Some(text_lab),
-            );
-        }
-    }
-
-    role_assignment_from_lab(
-        role,
-        text_lab,
-        None,
-        0.25,
-        Some("fallback"),
-        Some(bg_lab),
-        Some(text_lab),
-    )
 }
 
 /// Generate synthetic light text color as fallback
@@ -805,7 +1343,10 @@ __SCROLLBAR_BLOCK__
 }
 
 /// Map color clusters to UI element roles
-fn map_colors_to_roles(clusters: &[ColorCluster]) -> Vec<RoleAssignment> {
+fn map_colors_to_roles(
+    clusters: &[ColorCluster],
+    debug_enabled: bool,
+) -> (Vec<RoleAssignment>, Option<PairwiseDebug>) {
     let mut assignments = Vec::new();
     let mut used_indices = Vec::new();
 
@@ -857,25 +1398,13 @@ fn map_colors_to_roles(clusters: &[ColorCluster]) -> Vec<RoleAssignment> {
     let text_lab = text_assignment.lab;
     assignments.push(text_assignment);
 
-    // 3. Accent color with contrast guardrails
-    let accent_candidates = rank_accent_candidates(clusters, bg_lab, &used_indices);
-    let accent_assignment = resolve_guarded_color(
-        ColorRole::Accent,
+    // 3. Solve accent + active pair together
+    let (accent_assignment, active_assignment, pairwise_debug) = select_accent_and_active(
         clusters,
-        &accent_candidates,
         &mut used_indices,
         bg_lab,
         text_lab,
-        GuardrailConfig {
-            min_contrast_bg: 3.0,
-            min_contrast_text: 4.5,
-            min_contrast_peer: None,
-            min_delta_e_peer: None,
-            adjust_step: 4.0,
-            max_adjust_steps: 12,
-        },
-        |score| if score > 2.0 { 0.85 } else { 0.6 },
-        None,
+        debug_enabled,
     );
     assignments.push(accent_assignment.clone());
 
@@ -894,26 +1423,6 @@ fn map_colors_to_roles(clusters: &[ColorCluster]) -> Vec<RoleAssignment> {
     );
     assignments.push(border_assignment.clone());
 
-    // 5. Active item color with guardrails (used as background behind text)
-    let active_candidates = rank_active_item_candidates(clusters, bg_lab, &used_indices);
-    let active_assignment = resolve_guarded_color(
-        ColorRole::ActiveItem,
-        clusters,
-        &active_candidates,
-        &mut used_indices,
-        bg_lab,
-        text_lab,
-        GuardrailConfig {
-            min_contrast_bg: 2.0,
-            min_contrast_text: 4.5,
-            min_contrast_peer: Some(4.5),
-            min_delta_e_peer: Some(25.0),
-            adjust_step: 4.0,
-            max_adjust_steps: 12,
-        },
-        |score| if score > 1.5 { 0.85 } else { 0.6 },
-        Some(accent_assignment.lab),
-    );
     assignments.push(active_assignment.clone());
 
     // 6. Inactive/muted - reuse border color
@@ -937,12 +1446,23 @@ fn map_colors_to_roles(clusters: &[ColorCluster]) -> Vec<RoleAssignment> {
         active_assignment.confidence,
     ));
 
-    assignments
+    (assignments, pairwise_debug)
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
     let start = Instant::now();
+
+    let debug_enabled = if args.debug {
+        true
+    } else {
+        env::var("RMPC_THEME_DEBUG")
+            .map(|value| {
+                let normalized = value.to_ascii_lowercase();
+                matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
+            })
+            .unwrap_or(false)
+    };
 
     // Validate image path exists
     if !args.image.exists() {
@@ -1062,7 +1582,7 @@ fn main() -> Result<()> {
     clusters.sort_by(|a, b| b.count.cmp(&a.count));
 
     // Map colors to theme element roles
-    let role_assignments = map_colors_to_roles(&clusters);
+    let (role_assignments, pairwise_debug) = map_colors_to_roles(&clusters, debug_enabled);
     let scrollbar_enabled = !args.disable_scrollbar;
 
     // Generate theme file if requested (before moving role_assignments)
@@ -1092,6 +1612,13 @@ fn main() -> Result<()> {
         duration_ms,
         color_space: args.space.clone(),
         scrollbar_enabled,
+        debug: if debug_enabled {
+            Some(DebugOutput {
+                pairwise: pairwise_debug,
+            })
+        } else {
+            None
+        },
     };
 
     // Serialize to JSON

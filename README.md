@@ -10,6 +10,7 @@ Automatically generate rmpc themes from album artwork using K-means color extrac
 
 - 🎨 Extracts dominant colors from album art using K-means clustering
 - 🎯 Intelligently maps colors to UI elements (background, text, accents, borders)
+- 🧮 Deterministic pairwise accent/active solver with contrast matrix guardrails
 - 📊 WCAG AA contrast compliance (4.5:1 ratio)
 - ⚡ Fast generation (~10ms per image)
 - 🔄 Automatic theme switching on song change
@@ -78,10 +79,9 @@ Check the generator version anytime with:
 
 - **Background**: Most dominant color with low saturation (S < 0.4)
 - **Text**: Highest contrast against background (≥ 4.5:1 WCAG AA)
-- **Accent**: High saturation color with good contrast (≥ 3.0:1)
+- **Accent & Active**: Evaluated together via a deterministic pairwise solver that maximizes the minimum contrast across (accent↔bg, accent↔text, accent↔active, active↔bg, active↔text) while enforcing ΔE ≥ 25 and ≥25 L* separation. Fallbacks relax peer contrast slightly before resorting to neutral synthetics.
 - **Border**: Mid-saturation color perceptually distinct from background (ΔE > 20)
-- **Active**: Bright, saturated color for selected items (V > 0.5, S > 0.3)
-- **Guardrails**: Accent/active colors must meet ≥ 3.0:1 against the background and ≥ 4.5:1 against text; active backgrounds must also keep ≥ 4.5:1 contrast and ΔE ≥ 25 from the accent so highlighted-current rows stay readable. If clusters fail, fallback synthesis adjusts lightness to keep highlights readable.
+- **Guardrails**: All roles keep ≥4.5:1 contrast wherever text appears, ≥3.0:1 accent↔background, and ≥4.5:1 accent↔active so highlighted-current rows stay readable. Debug mode (`--debug`) emits the evaluated matrix for inspection.
 
 ## Project Structure
 
@@ -150,6 +150,11 @@ Options:
 - `--theme-output`: Path to output theme file (generates RON format)
 - `--output`: Path to output JSON analysis (optional)
 - `--disable-scrollbar`: Omit the scrollbar block (helpful if panes never scroll or you want to hide the gutter)
+- `--debug`: Emit pairwise contrast diagnostics (also available via `RMPC_THEME_DEBUG=1`)
+
+### Debug Diagnostics
+
+Set `--debug` or `RMPC_THEME_DEBUG=1` to embed a `debug.pairwise` block in the JSON output. It captures the evaluated accent/active matrix, top-scoring pairs, and candidate provenance so you can diagnose outliers quickly.
 
 ## Performance
 
