@@ -21,6 +21,8 @@ enum ColorRole {
     Accent,
     Border,
     ActiveItem,
+    HighlightText,
+    Frame,
     InactiveItem,
     ProgressBar,
     Scrollbar,
@@ -56,6 +58,10 @@ const PEER_DELTA_E_MIN: f32 = 25.0;
 const BRIGHTNESS_SEPARATION_MIN: f32 = 25.0;
 const RELAXED_PEER_CONTRAST_MIN: f32 = 3.5;
 const RELAXED_PEER_DELTA_E_MIN: f32 = 20.0;
+const HIGHLIGHT_TEXT_MIN_CONTRAST: f32 = 4.5;
+const HIGHLIGHT_TEXT_BG_MIN: f32 = 1.5;
+const FRAME_BG_MIN: f32 = 3.0;
+const FRAME_TEXT_MIN: f32 = 2.0;
 
 #[derive(Parser, Debug)]
 #[command(name = "rmpc-theme-gen", version = APP_VERSION)]
@@ -128,6 +134,28 @@ struct ThemeGenOutput {
 struct DebugOutput {
     #[serde(skip_serializing_if = "Option::is_none")]
     pairwise: Option<PairwiseDebug>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    roles: Option<RolesDebug>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RolesDebug {
+    highlight_text: RoleDebugEntry,
+    frame: RoleDebugEntry,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RoleDebugEntry {
+    hex: String,
+    origin: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    contrast_against_active: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    contrast_against_background: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    contrast_against_text: Option<f32>,
 }
 
 /// Select background color: prefer most dominant with reasonable saturation/lightness
@@ -463,7 +491,10 @@ fn collect_adjusted_variants(
     variants
 }
 
-fn push_candidate_if_unique(candidates: &mut Vec<RoleColorCandidate>, candidate: RoleColorCandidate) {
+fn push_candidate_if_unique(
+    candidates: &mut Vec<RoleColorCandidate>,
+    candidate: RoleColorCandidate,
+) {
     if !candidates
         .iter()
         .any(|existing| lab_close(existing.lab, candidate.lab, 0.5))
@@ -477,9 +508,7 @@ fn cmp_f32_desc(a: f32, b: f32) -> Ordering {
         (true, true) => Ordering::Equal,
         (true, false) => Ordering::Less,
         (false, true) => Ordering::Greater,
-        (false, false) => b
-            .partial_cmp(&a)
-            .unwrap_or(Ordering::Equal),
+        (false, false) => b.partial_cmp(&a).unwrap_or(Ordering::Equal),
     }
 }
 
@@ -552,13 +581,9 @@ fn build_accent_candidates(
             );
         }
 
-        for (adjusted, delta_l) in collect_adjusted_variants(
-            cluster.lab,
-            bg_lab,
-            text_lab,
-            &guard,
-            None,
-        ) {
+        for (adjusted, delta_l) in
+            collect_adjusted_variants(cluster.lab, bg_lab, text_lab, &guard, None)
+        {
             push_candidate_if_unique(
                 &mut results,
                 RoleColorCandidate {
@@ -639,13 +664,9 @@ fn build_active_candidates(
             );
         }
 
-        for (adjusted, delta_l) in collect_adjusted_variants(
-            cluster.lab,
-            bg_lab,
-            text_lab,
-            &guard,
-            None,
-        ) {
+        for (adjusted, delta_l) in
+            collect_adjusted_variants(cluster.lab, bg_lab, text_lab, &guard, None)
+        {
             push_candidate_if_unique(
                 &mut results,
                 RoleColorCandidate {
@@ -707,6 +728,320 @@ fn candidate_list_for_debug(candidates: &[RoleColorCandidate]) -> Vec<PairCandid
         .collect()
 }
 
+struct HighlightCandidate {
+    lab: [f32; 3],
+    origin: String,
+    preference: u8,
+    confidence: f32,
+    contrast_active: f32,
+    contrast_background: f32,
+    delta_from_text: f32,
+}
+
+fn select_highlight_text(
+    text_assignment: &RoleAssignment,
+    accent_assignment: &RoleAssignment,
+    active_assignment: &RoleAssignment,
+    background_lab: [f32; 3],
+) -> (RoleAssignment, RoleDebugEntry) {
+    let text_lab = text_assignment.lab;
+    let accent_lab = accent_assignment.lab;
+    let active_lab = active_assignment.lab;
+
+    let mut candidates: Vec<HighlightCandidate> = Vec::new();
+
+    let mut add_candidate = |lab: [f32; 3], origin: String, preference: u8, confidence: f32| {
+        let contrast_active = color::calculate_contrast_ratio(lab, active_lab);
+        let contrast_background = color::calculate_contrast_ratio(lab, background_lab);
+        if contrast_active >= HIGHLIGHT_TEXT_MIN_CONTRAST
+            && contrast_background >= HIGHLIGHT_TEXT_BG_MIN
+        {
+            let delta_from_text = color::delta_e_cie76(lab, text_lab);
+            candidates.push(HighlightCandidate {
+                lab,
+                origin,
+                preference,
+                confidence,
+                contrast_active,
+                contrast_background,
+                delta_from_text,
+            });
+        }
+    };
+
+    // Original text color
+    add_candidate(
+        text_lab,
+        "text".to_string(),
+        0,
+        text_assignment.confidence.max(0.85),
+    );
+
+    // Adjusted text (lighter/darker)
+    for direction in [-1.0f32, 1.0f32] {
+        let mut candidate = text_lab;
+        let mut steps_taken = 0usize;
+        loop {
+            if steps_taken >= 8 {
+                break;
+            }
+            steps_taken += 1;
+            candidate[0] = (candidate[0] + direction * 4.0).clamp(0.0, 100.0);
+            let contrast_active = color::calculate_contrast_ratio(candidate, active_lab);
+            let contrast_background = color::calculate_contrast_ratio(candidate, background_lab);
+            if contrast_active >= HIGHLIGHT_TEXT_MIN_CONTRAST
+                && contrast_background >= HIGHLIGHT_TEXT_BG_MIN
+            {
+                let delta = candidate[0] - text_lab[0];
+                add_candidate(candidate, format!("text_adjusted:{:+.1}", delta), 1, 0.75);
+                break;
+            }
+        }
+    }
+
+    // Accent as fallback
+    add_candidate(accent_lab, "accent".to_string(), 2, 0.65);
+
+    // Adjusted accent
+    for direction in [-1.0f32, 1.0f32] {
+        let mut candidate = accent_lab;
+        let mut steps_taken = 0usize;
+        loop {
+            if steps_taken >= 6 {
+                break;
+            }
+            steps_taken += 1;
+            candidate[0] = (candidate[0] + direction * 4.0).clamp(0.0, 100.0);
+            let contrast_active = color::calculate_contrast_ratio(candidate, active_lab);
+            let contrast_background = color::calculate_contrast_ratio(candidate, background_lab);
+            if contrast_active >= HIGHLIGHT_TEXT_MIN_CONTRAST
+                && contrast_background >= HIGHLIGHT_TEXT_BG_MIN
+            {
+                let delta = candidate[0] - accent_lab[0];
+                add_candidate(candidate, format!("accent_adjusted:{:+.1}", delta), 3, 0.65);
+                break;
+            }
+        }
+    }
+
+    // Black / White fallback
+    for (rgb, name) in [
+        ([0, 0, 0], "synthetic:black"),
+        ([255, 255, 255], "synthetic:white"),
+    ] {
+        let lab = color::rgb8_to_lab(rgb);
+        add_candidate(lab, name.to_string(), 4, 0.6);
+    }
+
+    if candidates.is_empty() {
+        let assignment = role_assignment_from_lab(
+            ColorRole::HighlightText,
+            text_lab,
+            None,
+            0.5,
+            Some("fallback:text"),
+            Some(active_lab),
+            None,
+        );
+        let debug = RoleDebugEntry {
+            hex: assignment.hex.clone(),
+            origin: "fallback:text".to_string(),
+            contrast_against_active: Some(color::calculate_contrast_ratio(text_lab, active_lab)),
+            contrast_against_background: Some(color::calculate_contrast_ratio(
+                text_lab,
+                background_lab,
+            )),
+            contrast_against_text: None,
+        };
+        return (assignment, debug);
+    }
+
+    candidates.sort_by(|a, b| {
+        a.preference
+            .cmp(&b.preference)
+            .then_with(|| cmp_f32_desc(a.contrast_active, b.contrast_active))
+            .then_with(|| {
+                a.delta_from_text
+                    .partial_cmp(&b.delta_from_text)
+                    .unwrap_or(Ordering::Equal)
+            })
+    });
+
+    let winner = &candidates[0];
+    let assignment = role_assignment_from_lab(
+        ColorRole::HighlightText,
+        winner.lab,
+        None,
+        winner.confidence,
+        Some(winner.origin.as_str()),
+        Some(active_lab),
+        None,
+    );
+    let debug = RoleDebugEntry {
+        hex: assignment.hex.clone(),
+        origin: winner.origin.clone(),
+        contrast_against_active: Some(winner.contrast_active),
+        contrast_against_background: Some(winner.contrast_background),
+        contrast_against_text: Some(color::calculate_contrast_ratio(winner.lab, text_lab)),
+    };
+
+    (assignment, debug)
+}
+
+struct FrameCandidate {
+    lab: [f32; 3],
+    origin: String,
+    preference: u8,
+    confidence: f32,
+    contrast_background: f32,
+    contrast_text: f32,
+    delta_from_accent: f32,
+}
+
+fn select_frame_color(
+    accent_assignment: &RoleAssignment,
+    background_lab: [f32; 3],
+    text_lab: [f32; 3],
+) -> (RoleAssignment, RoleDebugEntry) {
+    let accent_lab = accent_assignment.lab;
+
+    let mut candidates: Vec<FrameCandidate> = Vec::new();
+
+    let mut add_candidate = |lab: [f32; 3], origin: String, preference: u8, confidence: f32| {
+        let contrast_background = color::calculate_contrast_ratio(lab, background_lab);
+        let contrast_text = color::calculate_contrast_ratio(lab, text_lab);
+        if contrast_background >= FRAME_BG_MIN && contrast_text >= FRAME_TEXT_MIN {
+            let delta_from_accent = color::delta_e_cie76(lab, accent_lab);
+            candidates.push(FrameCandidate {
+                lab,
+                origin,
+                preference,
+                confidence,
+                contrast_background,
+                contrast_text,
+                delta_from_accent,
+            });
+        }
+    };
+
+    add_candidate(
+        accent_lab,
+        "accent".to_string(),
+        0,
+        accent_assignment.confidence.max(0.85),
+    );
+
+    for direction in [-1.0f32, 1.0f32] {
+        let mut candidate = accent_lab;
+        let mut steps_taken = 0usize;
+        loop {
+            if steps_taken >= 6 {
+                break;
+            }
+            steps_taken += 1;
+            candidate[0] = (candidate[0] + direction * 4.0).clamp(0.0, 100.0);
+            let contrast_background = color::calculate_contrast_ratio(candidate, background_lab);
+            let contrast_text = color::calculate_contrast_ratio(candidate, text_lab);
+            if contrast_background >= FRAME_BG_MIN && contrast_text >= FRAME_TEXT_MIN {
+                let delta = candidate[0] - accent_lab[0];
+                add_candidate(candidate, format!("accent_adjusted:{:+.1}", delta), 1, 0.8);
+                break;
+            }
+        }
+    }
+
+    // Derived from background
+    for direction in [-1.0f32, 1.0f32] {
+        let mut candidate = background_lab;
+        let mut steps_taken = 0usize;
+        loop {
+            if steps_taken >= 6 {
+                break;
+            }
+            steps_taken += 1;
+            candidate[0] = (candidate[0] + direction * 6.0).clamp(0.0, 100.0);
+            let contrast_background = color::calculate_contrast_ratio(candidate, background_lab);
+            let contrast_text = color::calculate_contrast_ratio(candidate, text_lab);
+            if contrast_background >= FRAME_BG_MIN && contrast_text >= FRAME_TEXT_MIN {
+                let delta = candidate[0] - background_lab[0];
+                add_candidate(
+                    candidate,
+                    format!("background_adjusted:{:+.1}", delta),
+                    2,
+                    0.65,
+                );
+                break;
+            }
+        }
+    }
+
+    // Text fallback
+    add_candidate(text_lab, "text".to_string(), 3, 0.6);
+
+    // Black/White fallback
+    for (rgb, name) in [
+        ([0, 0, 0], "synthetic:black"),
+        ([255, 255, 255], "synthetic:white"),
+    ] {
+        let lab = color::rgb8_to_lab(rgb);
+        add_candidate(lab, name.to_string(), 4, 0.55);
+    }
+
+    if candidates.is_empty() {
+        let assignment = role_assignment_from_lab(
+            ColorRole::Frame,
+            accent_lab,
+            accent_assignment.source_cluster_index,
+            0.6,
+            Some("fallback:accent"),
+            Some(background_lab),
+            Some(text_lab),
+        );
+        let debug = RoleDebugEntry {
+            hex: assignment.hex.clone(),
+            origin: "fallback:accent".to_string(),
+            contrast_against_active: None,
+            contrast_against_background: Some(color::calculate_contrast_ratio(
+                accent_lab,
+                background_lab,
+            )),
+            contrast_against_text: Some(color::calculate_contrast_ratio(accent_lab, text_lab)),
+        };
+        return (assignment, debug);
+    }
+
+    candidates.sort_by(|a, b| {
+        a.preference
+            .cmp(&b.preference)
+            .then_with(|| cmp_f32_desc(a.contrast_background, b.contrast_background))
+            .then_with(|| {
+                a.delta_from_accent
+                    .partial_cmp(&b.delta_from_accent)
+                    .unwrap_or(Ordering::Equal)
+            })
+    });
+
+    let winner = &candidates[0];
+    let assignment = role_assignment_from_lab(
+        ColorRole::Frame,
+        winner.lab,
+        None,
+        winner.confidence,
+        Some(winner.origin.as_str()),
+        Some(background_lab),
+        Some(text_lab),
+    );
+    let debug = RoleDebugEntry {
+        hex: assignment.hex.clone(),
+        origin: winner.origin.clone(),
+        contrast_against_active: None,
+        contrast_against_background: Some(winner.contrast_background),
+        contrast_against_text: Some(winner.contrast_text),
+    };
+
+    (assignment, debug)
+}
+
 fn build_pair_metrics(
     accent_lab: [f32; 3],
     active_lab: [f32; 3],
@@ -752,7 +1087,12 @@ fn passes_pairwise_guardrails(metrics: &PairwiseMetrics, guard: PairwiseGuardrai
 
 fn compare_pairwise_results(lhs: &PairwiseResult, rhs: &PairwiseResult) -> Ordering {
     cmp_f32_desc(lhs.metrics.min_contrast(), rhs.metrics.min_contrast())
-        .then_with(|| cmp_f32_desc(lhs.metrics.brightness_separation(), rhs.metrics.brightness_separation()))
+        .then_with(|| {
+            cmp_f32_desc(
+                lhs.metrics.brightness_separation(),
+                rhs.metrics.brightness_separation(),
+            )
+        })
         .then_with(|| lhs.provenance_score.cmp(&rhs.provenance_score))
         .then_with(|| cmp_f32_desc(lhs.metrics.avg_contrast(), rhs.metrics.avg_contrast()))
         .then_with(|| {
@@ -1018,8 +1358,6 @@ fn select_accent_and_active(
     (accent_assignment, active_assignment, debug)
 }
 
-
-
 fn role_assignment_from_lab(
     role: ColorRole,
     lab: [f32; 3],
@@ -1103,10 +1441,6 @@ fn generate_theme_ron(assignments: &[RoleAssignment], scrollbar_enabled: bool) -
         .iter()
         .find(|a| a.role == ColorRole::Accent)
         .unwrap();
-    let border = assignments
-        .iter()
-        .find(|a| a.role == ColorRole::Border)
-        .unwrap();
     let active = assignments
         .iter()
         .find(|a| a.role == ColorRole::ActiveItem)
@@ -1115,11 +1449,19 @@ fn generate_theme_ron(assignments: &[RoleAssignment], scrollbar_enabled: bool) -
         .iter()
         .find(|a| a.role == ColorRole::InactiveItem)
         .unwrap();
+    let highlight_text_role = assignments
+        .iter()
+        .find(|a| a.role == ColorRole::HighlightText)
+        .unwrap();
+    let frame = assignments
+        .iter()
+        .find(|a| a.role == ColorRole::Frame)
+        .unwrap();
 
     let scrollbar_block = if scrollbar_enabled {
         format!(
             "    scrollbar: (\n        symbols: [\"│\", \"█\", \"▲\", \"▼\"],\n        track_style: (fg: \"{}\", bg: \"{}\"),\n        ends_style: (fg: \"{}\", bg: \"{}\"),\n        thumb_style: (fg: \"{}\", bg: \"{}\"),\n    ),\n",
-            bg.hex, bg.hex, bg.hex, bg.hex, accent.hex, bg.hex
+            frame.hex, bg.hex, frame.hex, bg.hex, frame.hex, bg.hex
         )
     } else {
         "    scrollbar: None,\n".to_string()
@@ -1307,10 +1649,10 @@ __SCROLLBAR_BLOCK__
         bg.hex,          // tab_bar.inactive_style.bg
         // Item styles
         accent.hex, bg.hex,      // highlighted_item_style (fg, bg)
-        text.hex,        // current_item_style.fg
-        active.hex,      // current_item_style.bg
-        border.hex,      // borders_style.fg
-        accent.hex,      // highlight_border_style.fg
+        highlight_text_role.hex, // current_item_style.fg
+        active.hex,              // current_item_style.bg
+        frame.hex,               // borders_style.fg
+        frame.hex,               // highlight_border_style.fg
         // Level styles (info, warn, error, debug, trace)
         accent.hex, bg.hex,      // info
         "#f0c674", bg.hex,       // warn (yellowish)
@@ -1318,10 +1660,10 @@ __SCROLLBAR_BLOCK__
         "#b5bd68", bg.hex,       // debug (greenish)
         "#b294bb", bg.hex,       // trace (purplish)
         // Progress bar
-        inactive.hex, bg.hex,    // progress_bar.track_style (fg, bg)
-        active.hex,   bg.hex,    // progress_bar.elapsed_style (fg, bg)
-        active.hex,             // progress_bar.thumb_style.fg
-        bg.hex,                 // progress_bar.thumb_style.bg
+        frame.hex, bg.hex,       // progress_bar.track_style (fg, bg)
+        active.hex, bg.hex,      // progress_bar.elapsed_style (fg, bg)
+        frame.hex,               // progress_bar.thumb_style.fg
+        bg.hex,                  // progress_bar.thumb_style.bg
         // Song table format
         text.hex, bg.hex,        // album style (fg, bg)
         text.hex, bg.hex,        // album default style (fg, bg)
@@ -1336,8 +1678,8 @@ __SCROLLBAR_BLOCK__
         accent.hex,      // artist default style fg
         // States widget
         text.hex,        // active_style.fg
-        text.hex,        // separator_style.fg
-        inactive.hex,    // style.fg
+        frame.hex,       // separator_style.fg
+        frame.hex,       // style.fg
     )
     .replace("__SCROLLBAR_BLOCK__", &scrollbar_block)
 }
@@ -1346,7 +1688,11 @@ __SCROLLBAR_BLOCK__
 fn map_colors_to_roles(
     clusters: &[ColorCluster],
     debug_enabled: bool,
-) -> (Vec<RoleAssignment>, Option<PairwiseDebug>) {
+) -> (
+    Vec<RoleAssignment>,
+    Option<PairwiseDebug>,
+    Option<RolesDebug>,
+) {
     let mut assignments = Vec::new();
     let mut used_indices = Vec::new();
 
@@ -1399,13 +1745,8 @@ fn map_colors_to_roles(
     assignments.push(text_assignment);
 
     // 3. Solve accent + active pair together
-    let (accent_assignment, active_assignment, pairwise_debug) = select_accent_and_active(
-        clusters,
-        &mut used_indices,
-        bg_lab,
-        text_lab,
-        debug_enabled,
-    );
+    let (accent_assignment, active_assignment, pairwise_debug) =
+        select_accent_and_active(clusters, &mut used_indices, bg_lab, text_lab, debug_enabled);
     assignments.push(accent_assignment.clone());
 
     // 4. Border color (distinct from background)
@@ -1424,6 +1765,22 @@ fn map_colors_to_roles(
     assignments.push(border_assignment.clone());
 
     assignments.push(active_assignment.clone());
+
+    // 5. Highlight text color tuned for active background
+    let (highlight_assignment, highlight_debug) = select_highlight_text(
+        assignments
+            .iter()
+            .find(|a| a.role == ColorRole::Text)
+            .unwrap(),
+        &accent_assignment,
+        &active_assignment,
+        bg_lab,
+    );
+    assignments.push(highlight_assignment.clone());
+
+    // 6. Frame color for borders/separators
+    let (frame_assignment, frame_debug) = select_frame_color(&accent_assignment, bg_lab, text_lab);
+    assignments.push(frame_assignment.clone());
 
     // 6. Inactive/muted - reuse border color
     assignments.push(clone_for_role(
@@ -1446,7 +1803,16 @@ fn map_colors_to_roles(
         active_assignment.confidence,
     ));
 
-    (assignments, pairwise_debug)
+    let roles_debug = if debug_enabled {
+        Some(RolesDebug {
+            highlight_text: highlight_debug,
+            frame: frame_debug,
+        })
+    } else {
+        None
+    };
+
+    (assignments, pairwise_debug, roles_debug)
 }
 
 fn main() -> Result<()> {
@@ -1582,7 +1948,8 @@ fn main() -> Result<()> {
     clusters.sort_by(|a, b| b.count.cmp(&a.count));
 
     // Map colors to theme element roles
-    let (role_assignments, pairwise_debug) = map_colors_to_roles(&clusters, debug_enabled);
+    let (role_assignments, pairwise_debug, roles_debug) =
+        map_colors_to_roles(&clusters, debug_enabled);
     let scrollbar_enabled = !args.disable_scrollbar;
 
     // Generate theme file if requested (before moving role_assignments)
@@ -1615,6 +1982,7 @@ fn main() -> Result<()> {
         debug: if debug_enabled {
             Some(DebugOutput {
                 pairwise: pairwise_debug,
+                roles: roles_debug,
             })
         } else {
             None

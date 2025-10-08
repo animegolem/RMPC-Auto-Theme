@@ -80,8 +80,9 @@ Check the generator version anytime with:
 - **Background**: Most dominant color with low saturation (S < 0.4)
 - **Text**: Highest contrast against background (≥ 4.5:1 WCAG AA)
 - **Accent & Active**: Evaluated together via a deterministic pairwise solver that maximizes the minimum contrast across (accent↔bg, accent↔text, accent↔active, active↔bg, active↔text) while enforcing ΔE ≥ 25 and ≥25 L* separation. Fallbacks relax peer contrast slightly before resorting to neutral synthetics.
-- **Border**: Mid-saturation color perceptually distinct from background (ΔE > 20)
-- **Guardrails**: All roles keep ≥4.5:1 contrast wherever text appears, ≥3.0:1 accent↔background, and ≥4.5:1 accent↔active so highlighted-current rows stay readable. Debug mode (`--debug`) emits the evaluated matrix for inspection.
+- **Highlight Text**: Derived from the body text (or accent/neutral fallbacks) to guarantee ≥ 4.5:1 contrast against the active highlight background while staying distinct from the page background.
+- **Frame**: A shared stroke color (≥3.0:1 vs background) used for borders, dividers, progress rails, and scrollbar ends/thumb so we avoid inventing extra palette colors.
+- **Guardrails**: Base text and highlight text stay ≥4.5:1 against their backgrounds; accent↔background ≥3.0:1; accent↔active ≥3.0:1 with ΔE ≥ 25. Debug mode (`--debug`) emits pairwise matrices plus chosen highlight/frame colors.
 
 ## Project Structure
 
