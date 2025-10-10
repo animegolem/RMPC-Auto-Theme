@@ -51,7 +51,8 @@ const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const ACCENT_BG_MIN: f32 = 3.0;
 const ACCENT_TEXT_MIN: f32 = 4.5;
-const ACTIVE_BG_MIN: f32 = 2.0;
+const ACTIVE_BG_MIN: f32 = 3.5;
+const ACTIVE_BG_RELAXED_MIN: f32 = 3.5;
 const ACTIVE_TEXT_MIN: f32 = 4.5;
 const PEER_CONTRAST_MIN: f32 = 4.5;
 const PEER_DELTA_E_MIN: f32 = 25.0;
@@ -62,6 +63,10 @@ const HIGHLIGHT_TEXT_MIN_CONTRAST: f32 = 4.5;
 const HIGHLIGHT_TEXT_BG_MIN: f32 = 1.5;
 const FRAME_BG_MIN: f32 = 3.0;
 const FRAME_TEXT_MIN: f32 = 2.0;
+const MIN_CHROMA_THRESHOLD: f32 = 0.05;
+const MIN_HUE_DELTA_ACTIVE_BG: f32 = 30.0;
+const MIN_HUE_DELTA_ACTIVE_TEXT: f32 = 30.0;
+const MIN_HUE_DELTA_ACTIVE_ACCENT: f32 = 20.0;
 
 #[derive(Parser, Debug)]
 #[command(name = "rmpc-theme-gen", version = APP_VERSION)]
@@ -72,7 +77,7 @@ struct Args {
     image: PathBuf,
 
     /// Number of color clusters to extract
-    #[arg(short, long, default_value = "12")]
+    #[arg(short, long, default_value = "30")]
     k: usize,
 
     /// Color space for clustering (CIELAB, RGB, HSL, HSV, YUV, CIELUV)
@@ -238,6 +243,14 @@ struct PairwiseMetrics {
     delta_e: f32,
     accent_l: f32,
     active_l: f32,
+    accent_hue: f32,
+    accent_chroma: f32,
+    active_hue: f32,
+    active_chroma: f32,
+    background_hue: f32,
+    background_chroma: f32,
+    text_hue: f32,
+    text_chroma: f32,
 }
 
 impl PairwiseMetrics {
@@ -257,6 +270,96 @@ impl PairwiseMetrics {
         (self.accent_bg + self.accent_text + self.accent_active + self.active_bg + self.active_text)
             / 5.0
     }
+}
+
+fn hue_separation_ok(h1: f32, c1: f32, h2: f32, c2: f32, min_delta: f32) -> bool {
+    if c1 < MIN_CHROMA_THRESHOLD || c2 < MIN_CHROMA_THRESHOLD {
+        return true;
+    }
+    color::delta_hue_degrees(h1, h2) >= min_delta
+}
+
+fn oklch_to_lab(l: f32, c: f32, h_deg: f32) -> [f32; 3] {
+    let oklch = [l, c, h_deg];
+    let oklab = color::oklch_to_oklab(oklch);
+    let rgb = color::oklab_to_rgb8(oklab);
+    color::rgb8_to_lab(rgb)
+}
+
+fn derive_active_with_hue(
+    background_lab: [f32; 3],
+    text_lab: [f32; 3],
+    accent_lab: [f32; 3],
+    bg_oklch: [f32; 3],
+    text_oklch: [f32; 3],
+    accent_oklch: [f32; 3],
+) -> Option<([f32; 3], String)> {
+    // Choose a target hue: prefer accent hue if distinct from background; otherwise flip background hue
+    let use_accent = hue_separation_ok(
+        accent_oklch[2],
+        accent_oklch[1],
+        bg_oklch[2],
+        bg_oklch[1],
+        MIN_HUE_DELTA_ACTIVE_BG,
+    );
+    let target_hue = if use_accent {
+        accent_oklch[2]
+    } else {
+        (bg_oklch[2] + 180.0) % 360.0
+    };
+    let base_chroma = bg_oklch[1].max(accent_oklch[1]).max(0.06).min(0.18);
+
+    // Try darkening first (usually safer for highlight backgrounds), then lightening
+    let directions = [-1.0f32, 1.0f32];
+    for step in 1..=12 {
+        let delta = step as f32 * 3.0;
+        for &dir in &directions {
+            let l = (bg_oklch[0] + dir * delta).clamp(0.0, 1.0);
+            let lab = oklch_to_lab(l, base_chroma, target_hue);
+            let c_bg = color::calculate_contrast_ratio(lab, background_lab);
+            if c_bg < ACTIVE_BG_MIN {
+                continue;
+            }
+            let c_text = color::calculate_contrast_ratio(lab, text_lab);
+            if c_text < ACTIVE_TEXT_MIN {
+                continue;
+            }
+            // Enforce hue separation against background and text if both sides have chroma
+            if !hue_separation_ok(
+                target_hue,
+                base_chroma,
+                bg_oklch[2],
+                bg_oklch[1],
+                MIN_HUE_DELTA_ACTIVE_BG,
+            ) {
+                continue;
+            }
+            if !hue_separation_ok(
+                target_hue,
+                base_chroma,
+                text_oklch[2],
+                text_oklch[1],
+                MIN_HUE_DELTA_ACTIVE_TEXT,
+            ) {
+                continue;
+            }
+            let origin = if use_accent {
+                format!(
+                    "accent_hue:{:.1} L{:+.1}",
+                    target_hue,
+                    l * 100.0 - background_lab[0]
+                )
+            } else {
+                format!(
+                    "bg_hue_rotated:{:.1} L{:+.1}",
+                    target_hue,
+                    l * 100.0 - background_lab[0]
+                )
+            };
+            return Some((lab, origin));
+        }
+    }
+    None
 }
 
 #[derive(Clone, Debug)]
@@ -283,6 +386,14 @@ struct PairwiseDebugEntry {
     min_contrast: f32,
     brightness_separation: f32,
     provenance_score: u8,
+    accent_hue: f32,
+    accent_chroma: f32,
+    active_hue: f32,
+    active_chroma: f32,
+    background_hue: f32,
+    background_chroma: f32,
+    text_hue: f32,
+    text_chroma: f32,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -898,6 +1009,33 @@ struct FrameCandidate {
     delta_from_accent: f32,
 }
 
+fn derive_active_from_background(
+    background_lab: [f32; 3],
+    accent_lab: [f32; 3],
+) -> Option<([f32; 3], String)> {
+    let directions = [-1.0f32, 1.0f32];
+    for step in 1..=12 {
+        let delta = step as f32 * 3.0;
+        for &direction in &directions {
+            let mut candidate = background_lab;
+            candidate[0] = (candidate[0] + direction * delta).clamp(0.0, 100.0);
+            let contrast_bg = color::calculate_contrast_ratio(candidate, background_lab);
+            let contrast_accent = color::calculate_contrast_ratio(candidate, accent_lab);
+            // Also ensure body text will be readable on the active background later
+            // We can't compute c_text here (we don't have text_lab), so we enforce it in derive_active_with_hue
+            if contrast_bg >= ACTIVE_BG_MIN && contrast_accent >= ACCENT_BG_MIN {
+                let origin = if direction < 0.0 {
+                    format!("background_adjusted:-{:.1}", delta)
+                } else {
+                    format!("background_adjusted:+{:.1}", delta)
+                };
+                return Some((candidate, origin));
+            }
+        }
+    }
+    None
+}
+
 fn select_frame_color(
     accent_assignment: &RoleAssignment,
     background_lab: [f32; 3],
@@ -1048,6 +1186,16 @@ fn build_pair_metrics(
     bg_lab: [f32; 3],
     text_lab: [f32; 3],
 ) -> PairwiseMetrics {
+    let accent_rgb = color::lab_to_rgb8(accent_lab);
+    let active_rgb = color::lab_to_rgb8(active_lab);
+    let bg_rgb = color::lab_to_rgb8(bg_lab);
+    let text_rgb = color::lab_to_rgb8(text_lab);
+
+    let accent_oklch = color::oklab_to_oklch(color::rgb8_to_oklab(accent_rgb));
+    let active_oklch = color::oklab_to_oklch(color::rgb8_to_oklab(active_rgb));
+    let bg_oklch = color::oklab_to_oklch(color::rgb8_to_oklab(bg_rgb));
+    let text_oklch = color::oklab_to_oklch(color::rgb8_to_oklab(text_rgb));
+
     PairwiseMetrics {
         accent_bg: color::calculate_contrast_ratio(accent_lab, bg_lab),
         accent_text: color::calculate_contrast_ratio(accent_lab, text_lab),
@@ -1057,6 +1205,14 @@ fn build_pair_metrics(
         delta_e: color::delta_e_cie76(accent_lab, active_lab),
         accent_l: accent_lab[0],
         active_l: active_lab[0],
+        accent_hue: accent_oklch[2],
+        accent_chroma: accent_oklch[1],
+        active_hue: active_oklch[2],
+        active_chroma: active_oklch[1],
+        background_hue: bg_oklch[2],
+        background_chroma: bg_oklch[1],
+        text_hue: text_oklch[2],
+        text_chroma: text_oklch[1],
     }
 }
 
@@ -1119,6 +1275,14 @@ fn make_debug_entry(result: &PairwiseResult) -> PairwiseDebugEntry {
         min_contrast: result.metrics.min_contrast(),
         brightness_separation: result.metrics.brightness_separation(),
         provenance_score: result.provenance_score,
+        accent_hue: result.metrics.accent_hue,
+        accent_chroma: result.metrics.accent_chroma,
+        active_hue: result.metrics.active_hue,
+        active_chroma: result.metrics.active_chroma,
+        background_hue: result.metrics.background_hue,
+        background_chroma: result.metrics.background_chroma,
+        text_hue: result.metrics.text_hue,
+        text_chroma: result.metrics.text_chroma,
     }
 }
 
@@ -1232,7 +1396,7 @@ fn select_accent_and_active(
         let relaxed_guardrails = PairwiseGuardrails {
             min_accent_vs_bg: ACCENT_BG_MIN,
             min_accent_vs_text: ACCENT_TEXT_MIN,
-            min_active_vs_bg: ACTIVE_BG_MIN,
+            min_active_vs_bg: ACTIVE_BG_RELAXED_MIN,
             min_active_vs_text: ACTIVE_TEXT_MIN,
             min_peer_contrast: RELAXED_PEER_CONTRAST_MIN,
             min_peer_delta_e: RELAXED_PEER_DELTA_E_MIN,
@@ -1321,7 +1485,7 @@ fn select_accent_and_active(
         }
     }
 
-    let active_assignment = role_assignment_from_lab(
+    let mut active_assignment = role_assignment_from_lab(
         ColorRole::ActiveItem,
         result.active.lab,
         result.active.source_cluster_index,
@@ -1334,6 +1498,69 @@ fn select_accent_and_active(
     if let Some(idx) = result.active.source_cluster_index {
         if !used_indices.contains(&idx) {
             used_indices.push(idx);
+        }
+    }
+
+    let active_contrast_ok =
+        color::calculate_contrast_ratio(active_assignment.lab, bg_lab) >= ACTIVE_BG_MIN;
+    if !active_contrast_ok {
+        if let Some((derived_lab, origin)) =
+            derive_active_from_background(bg_lab, accent_assignment.lab)
+        {
+            active_assignment = role_assignment_from_lab(
+                ColorRole::ActiveItem,
+                derived_lab,
+                None,
+                active_assignment.confidence.min(0.6),
+                Some(&origin),
+                Some(bg_lab),
+                Some(text_lab),
+            );
+        }
+    }
+
+    // Hue separation: if active is too close in hue to background or text, derive a hue-rotated candidate
+    {
+        let act_rgb = color::lab_to_rgb8(active_assignment.lab);
+        let act_oklch = color::oklab_to_oklch(color::rgb8_to_oklab(act_rgb));
+        let bg_oklch = color::oklab_to_oklch(color::rgb8_to_oklab(color::lab_to_rgb8(bg_lab)));
+        let txt_oklch = color::oklab_to_oklch(color::rgb8_to_oklab(color::lab_to_rgb8(text_lab)));
+        let accent_oklch = color::oklab_to_oklch(color::rgb8_to_oklab(color::lab_to_rgb8(
+            accent_assignment.lab,
+        )));
+        let ok_bg = hue_separation_ok(
+            act_oklch[2],
+            act_oklch[1],
+            bg_oklch[2],
+            bg_oklch[1],
+            MIN_HUE_DELTA_ACTIVE_BG,
+        );
+        let ok_txt = hue_separation_ok(
+            act_oklch[2],
+            act_oklch[1],
+            txt_oklch[2],
+            txt_oklch[1],
+            MIN_HUE_DELTA_ACTIVE_TEXT,
+        );
+        if !(ok_bg && ok_txt) {
+            if let Some((lab, origin)) = derive_active_with_hue(
+                bg_lab,
+                text_lab,
+                accent_assignment.lab,
+                bg_oklch,
+                txt_oklch,
+                accent_oklch,
+            ) {
+                active_assignment = role_assignment_from_lab(
+                    ColorRole::ActiveItem,
+                    lab,
+                    None,
+                    active_assignment.confidence.min(0.6),
+                    Some(&format!("{}+hue", origin)),
+                    Some(bg_lab),
+                    Some(text_lab),
+                );
+            }
         }
     }
 
@@ -1468,7 +1695,7 @@ fn generate_theme_ron(assignments: &[RoleAssignment], scrollbar_enabled: bool) -
     };
 
     format!(
-        r#"#![enable(implicit_some)]
+        r##"#![enable(implicit_some)]
 #![enable(unwrap_newtypes)]
 #![enable(unwrap_variant_newtypes)]
 (
@@ -1477,22 +1704,22 @@ fn generate_theme_ron(assignments: &[RoleAssignment], scrollbar_enabled: bool) -
     draw_borders: true,
     format_tag_separator: " | ",
     browser_column_widths: [20, 38, 42],
-    background_color: "{}",
-    text_color: "{}",
-    header_background_color: "{}",
-    modal_background_color: "{}",
+    background_color: "{bg}",
+    text_color: "{text}",
+    header_background_color: "{bg}",
+    modal_background_color: "{bg}",
     modal_backdrop: false,
-    preview_label_style: (fg: "{}", bg: "{}"),
-    preview_metadata_group_style: (fg: "{}", bg: "{}", modifiers: "Bold"),
+    preview_label_style: (fg: "{accent}", bg: "{bg}"),
+    preview_metadata_group_style: (fg: "{accent}", bg: "{bg}", modifiers: "Bold"),
     tab_bar: (
         enabled: true,
-        active_style: (fg: "{}", bg: "{}", modifiers: "Bold"),
-        inactive_style: (fg: "{}", bg: "{}"),
+        active_style: (fg: "{highlight_text}", bg: "{active}", modifiers: "Bold"),
+        inactive_style: (fg: "{inactive}", bg: "{bg}"),
     ),
-    highlighted_item_style: (fg: "{}", bg: "{}", modifiers: "Bold"),
-    current_item_style: (fg: "{}", bg: "{}", modifiers: "Bold"),
-    borders_style: (fg: "{}"),
-    highlight_border_style: (fg: "{}"),
+    highlighted_item_style: (fg: "{accent}", bg: "{bg}", modifiers: "Bold"),
+    current_item_style: (fg: "{highlight_text}", bg: "{active}", modifiers: "Bold"),
+    borders_style: (fg: "{frame}"),
+    highlight_border_style: (fg: "{frame}"),
     symbols: (
         song: "",
         dir: "",
@@ -1504,19 +1731,19 @@ fn generate_theme_ron(assignments: &[RoleAssignment], scrollbar_enabled: bool) -
         playlist_style: None,
     ),
     level_styles: (
-        info: (fg: "{}", bg: "{}"),
-        warn: (fg: "{}", bg: "{}"),
-        error: (fg: "{}", bg: "{}"),
-        debug: (fg: "{}", bg: "{}"),
-        trace: (fg: "{}", bg: "{}"),
+        info: (fg: "{accent}", bg: "{bg}"),
+        warn: (fg: "#f0c674", bg: "{bg}"),
+        error: (fg: "#cc6666", bg: "{bg}"),
+        debug: (fg: "#b5bd68", bg: "{bg}"),
+        trace: (fg: "#b294bb", bg: "{bg}"),
     ),
     progress_bar: (
         symbols: ["[", "=", ">", " ", "]"],
-        track_style: (fg: "{}", bg: "{}"),
-        elapsed_style: (fg: "{}", bg: "{}"),
-        thumb_style: (fg: "{}", bg: "{}"),
+        track_style: (fg: "{frame}", bg: "{bg}"),
+        elapsed_style: (fg: "{active}", bg: "{bg}"),
+        thumb_style: (fg: "{frame}", bg: "{bg}"),
     ),
-__SCROLLBAR_BLOCK__
+{scrollbar}
     song_table_format: [
         (
             prop: (kind: Property(Artist),
@@ -1531,8 +1758,8 @@ __SCROLLBAR_BLOCK__
             width: "35%",
         ),
         (
-            prop: (kind: Property(Album), style: (fg: "{}", bg: "{}"),
-                default: (kind: Text("Unknown Album"), style: (fg: "{}", bg: "{}"))
+            prop: (kind: Property(Album), style: (fg: "{text}", bg: "{bg}"),
+                default: (kind: Text("Unknown Album"), style: (fg: "{text}", bg: "{bg}"))
             ),
             width: "30%",
         ),
@@ -1570,9 +1797,9 @@ __SCROLLBAR_BLOCK__
         rows: [
             (
                 left: [
-                    (kind: Text("["), style: (fg: "{}", modifiers: "Bold")),
-                    (kind: Property(Status(StateV2(playing_label: "Playing", paused_label: "Paused", stopped_label: "Stopped"))), style: (fg: "{}", modifiers: "Bold")),
-                    (kind: Text("]"), style: (fg: "{}", modifiers: "Bold"))
+                    (kind: Text("["), style: (fg: "{accent}", modifiers: "Bold")),
+                    (kind: Property(Status(StateV2(playing_label: "Playing", paused_label: "Paused", stopped_label: "Stopped"))), style: (fg: "{accent}", modifiers: "Bold")),
+                    (kind: Text("]"), style: (fg: "{accent}", modifiers: "Bold"))
                 ],
                 center: [
                     (kind: Property(Song(Title)), style: (modifiers: "Bold"),
@@ -1580,8 +1807,8 @@ __SCROLLBAR_BLOCK__
                     )
                 ],
                 right: [
-                    (kind: Property(Widget(ScanStatus)), style: (fg: "{}")),
-                    (kind: Property(Widget(Volume)), style: (fg: "{}"))
+                    (kind: Property(Widget(ScanStatus)), style: (fg: "{text}")),
+                    (kind: Property(Widget(Volume)), style: (fg: "{text}"))
                 ]
             ),
             (
@@ -1594,10 +1821,10 @@ __SCROLLBAR_BLOCK__
                     (kind: Text(" kbps)"))
                 ],
                 center: [
-                    (kind: Property(Song(Artist)), style: (fg: "{}", modifiers: "Bold"),
-                        default: (kind: Text("Unknown"), style: (fg: "{}", modifiers: "Bold"))
+                    (kind: Property(Song(Artist)), style: (fg: "{accent}", modifiers: "Bold"),
+                        default: (kind: Text("Unknown"), style: (fg: "{accent}", modifiers: "Bold"))
                     ),
-                    (kind: Text(" - ")),
+                    (kind: Text(" - ")), 
                     (kind: Property(Song(Album)),
                         default: (kind: Text("Unknown Album"))
                     )
@@ -1605,10 +1832,10 @@ __SCROLLBAR_BLOCK__
                 right: [
                     (
                         kind: Property(Widget(States(
-                            active_style: (fg: "{}", modifiers: "Bold"),
-                            separator_style: (fg: "{}")))
+                            active_style: (fg: "{text}", modifiers: "Bold"),
+                            separator_style: (fg: "{frame}")))
                         ),
-                        style: (fg: "{}")
+                        style: (fg: "{frame}")
                     ),
                 ]
             ),
@@ -1618,13 +1845,13 @@ __SCROLLBAR_BLOCK__
         (
             kind: Group([
                 (kind: Property(Track)),
-                (kind: Text(" ")),
+                (kind: Text(" ")), 
             ])
         ),
         (
             kind: Group([
                 (kind: Property(Artist)),
-                (kind: Text(" - ")),
+                (kind: Text(" - ")), 
                 (kind: Property(Title)),
             ]),
             default: (kind: Property(Filename))
@@ -1634,54 +1861,16 @@ __SCROLLBAR_BLOCK__
         timestamp: false
     )
 )
-"#,
-        // Global colors
-        bg.hex,          // background_color
-        text.hex,        // text_color
-        bg.hex,          // header_background_color
-        bg.hex,          // modal_background_color
-        accent.hex, bg.hex,      // preview_label_style
-        accent.hex, bg.hex,      // preview_metadata_group_style
-        // Tab bar
-        text.hex,        // tab_bar.active_style.fg
-        active.hex,      // tab_bar.active_style.bg
-        inactive.hex,    // tab_bar.inactive_style.fg
-        bg.hex,          // tab_bar.inactive_style.bg
-        // Item styles
-        accent.hex, bg.hex,      // highlighted_item_style (fg, bg)
-        highlight_text_role.hex, // current_item_style.fg
-        active.hex,              // current_item_style.bg
-        frame.hex,               // borders_style.fg
-        frame.hex,               // highlight_border_style.fg
-        // Level styles (info, warn, error, debug, trace)
-        accent.hex, bg.hex,      // info
-        "#f0c674", bg.hex,       // warn (yellowish)
-        "#cc6666", bg.hex,       // error (reddish)
-        "#b5bd68", bg.hex,       // debug (greenish)
-        "#b294bb", bg.hex,       // trace (purplish)
-        // Progress bar
-        frame.hex, bg.hex,       // progress_bar.track_style (fg, bg)
-        active.hex, bg.hex,      // progress_bar.elapsed_style (fg, bg)
-        frame.hex,               // progress_bar.thumb_style.fg
-        bg.hex,                  // progress_bar.thumb_style.bg
-        // Song table format
-        text.hex, bg.hex,        // album style (fg, bg)
-        text.hex, bg.hex,        // album default style (fg, bg)
-        // Header row 1
-        accent.hex,      // status bracket [
-        accent.hex,      // status text
-        accent.hex,      // status bracket ]
-        accent.hex,      // scan status
-        accent.hex,      // volume
-        // Header row 2
-        accent.hex,      // artist style fg
-        accent.hex,      // artist default style fg
-        // States widget
-        text.hex,        // active_style.fg
-        frame.hex,       // separator_style.fg
-        frame.hex,       // style.fg
+"##,
+        bg = bg.hex,
+        text = text.hex,
+        accent = accent.hex,
+        active = active.hex,
+        inactive = inactive.hex,
+        highlight_text = highlight_text_role.hex,
+        frame = frame.hex,
+        scrollbar = scrollbar_block,
     )
-    .replace("__SCROLLBAR_BLOCK__", &scrollbar_block)
 }
 
 /// Map color clusters to UI element roles

@@ -2,20 +2,20 @@
 
 Automatically generate rmpc themes from album artwork using K-means color extraction.
 
-## Status
+**Currently this addon is in BETA.**
 
-**✅ FULLY FUNCTIONAL** - 6/6 implementation tickets complete, tested with live music playback
-
+- The core theme switcher works but some combinations still present illegal/unreadable contrast.
+- Currently non-default themes are not supported as the swticher _overwrites_ the entire theme on album change. Customer configuration is planned. 
 ## Features
 
-- 🎨 Extracts dominant colors from album art using K-means clustering
-- 🎯 Intelligently maps colors to UI elements (background, text, accents, borders)
-- 🧮 Deterministic pairwise accent/active solver with contrast matrix guardrails
-- 📊 WCAG AA contrast compliance (4.5:1 ratio)
-- ⚡ Fast generation (~10ms per image)
-- 🔄 Automatic theme switching on song change
-- 🛡️ Robust error handling
-- 📝 Detailed logging for debugging
+- Extracts dominant colors from album art using K-means clustering
+- Intelligently maps colors to UI elements (background, text, accents, borders)
+- Deterministic pairwise accent/active solver with contrast matrix guardrails
+- WCAG AA contrast compliance (4.5:1 ratio)
+- Fast generation (~10ms per image)
+- Automatic theme switching on song change
+- Robust error handling
+- Detailed logging for debugging
 
 ## Quick Start
 
@@ -42,7 +42,7 @@ cd ~/.config/rmpc/theme-switcher
 
 ### Configuration
 
-Your rmpc config is already configured:
+In the RMPC config.ron: 
 
 ```ron
 # ~/.config/rmpc/config.ron
@@ -229,22 +229,6 @@ Run tests:
 │  - rmpc hot-reloads  │
 └──────────────────────┘
 ```
-
-## Documentation
-
-- **AI-EPIC**: `/home/golem/.config/rmpc/theme-switcher/RAG/AI-EPIC/AI-EPIC-001-dynamic-album-art-theme-generation.md`
-- **Progress**: `/home/golem/.config/rmpc/theme-switcher/RAG/PROGRESS.md`
-- **Session Log**: `/home/golem/.config/rmpc/theme-switcher/RAG/2025-09-29-LOG-AI-dynamic-theme-generation-implementation.md`
-- **Test Results**: `/home/golem/.config/rmpc/theme-switcher/test-results/TEST-RESULTS.md`
-
-## Implementation Status
-
-- ✅ AI-IMP-001: Rust CLI tool
-- ✅ AI-IMP-002: Color mapping algorithm
-- ✅ AI-IMP-003: RON theme generation
-- ✅ AI-IMP-004: Shell wrapper script
-- ✅ AI-IMP-005: Integration testing
-- ✅ AI-IMP-006: Error handling and robustness (image format detection fixed)
 
 ## Credits
 

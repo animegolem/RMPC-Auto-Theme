@@ -393,3 +393,69 @@ mod tests {
         assert!((lab[2] - 67.20).abs() < 0.5);
     }
 }
+pub fn rgb8_to_oklab(rgb: [u8; 3]) -> [f32; 3] {
+    let [r, g, b] = srgb8_to_linear(rgb);
+    let l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b;
+    let m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b;
+    let s = 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b;
+
+    let l_cbrt = l.cbrt();
+    let m_cbrt = m.cbrt();
+    let s_cbrt = s.cbrt();
+
+    let l_star = 0.2104542553 * l_cbrt + 0.7936177850 * m_cbrt - 0.0040720468 * s_cbrt;
+    let a_star = 1.9779984951 * l_cbrt - 2.4285922050 * m_cbrt + 0.4505937099 * s_cbrt;
+    let b_star = 0.0259040371 * l_cbrt + 0.7827717662 * m_cbrt - 0.8086757660 * s_cbrt;
+
+    [l_star, a_star, b_star]
+}
+
+pub fn oklab_to_rgb8(oklab: [f32; 3]) -> [u8; 3] {
+    let l = oklab[0];
+    let a = oklab[1];
+    let b = oklab[2];
+
+    let l_cbrt = l + 0.3963377774 * a + 0.2158037573 * b;
+    let m_cbrt = l - 0.1055613458 * a - 0.0638541728 * b;
+    let s_cbrt = l - 0.0894841775 * a - 1.2914855480 * b;
+
+    let l = l_cbrt.powi(3);
+    let m = m_cbrt.powi(3);
+    let s = s_cbrt.powi(3);
+
+    let r = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+    let g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+    let b = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+
+    linear_to_srgb8([r, g, b])
+}
+
+pub fn oklab_to_oklch(oklab: [f32; 3]) -> [f32; 3] {
+    let l = oklab[0];
+    let a = oklab[1];
+    let b = oklab[2];
+    let c = (a * a + b * b).sqrt();
+    let h = if c < EPSILON {
+        0.0
+    } else {
+        b.atan2(a).to_degrees()
+    };
+    [l, c, h]
+}
+
+pub fn oklch_to_oklab(oklch: [f32; 3]) -> [f32; 3] {
+    let l = oklch[0];
+    let c = oklch[1];
+    let h_rad = oklch[2].to_radians();
+    let a = c * h_rad.cos();
+    let b = c * h_rad.sin();
+    [l, a, b]
+}
+
+pub fn delta_hue_degrees(h1: f32, h2: f32) -> f32 {
+    let mut delta = (h1 - h2).abs() % 360.0;
+    if delta > 180.0 {
+        delta = 360.0 - delta;
+    }
+    delta
+}
