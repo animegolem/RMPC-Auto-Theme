@@ -5,7 +5,7 @@ Automatically generate rmpc themes from album artwork using K-means color extrac
 **Currently this addon is in BETA.**
 
 - The core theme switcher works but some combinations still present illegal/unreadable contrast.
-- Currently non-default themes are not supported as the swticher _overwrites_ the entire theme on album change. Customer configuration is planned. 
+- Currently non-default themes are not supported as the swticher _overwrites_ the entire theme on album change. Custom configuration is planned. 
 ## Features
 
 - Extracts dominant colors from album art using K-means clustering
