@@ -1,11 +1,15 @@
 # rmpc Dynamic Theme Generator
 
+[Screencast From 2025-10-12 22-36-12.webm](https://github.com/user-attachments/assets/980286ca-3ad6-4fdb-9723-f733996ab558)
+
+
 Automatically generate rmpc themes from album artwork using K-means color extraction.
 
 **Currently this addon is in BETA.**
 
-- The core theme switcher works but some combinations still present illegal/unreadable contrast.
-- Currently non-default themes are not supported as the swticher _overwrites_ the entire theme on album change. Custom configuration is planned. 
+- Currently non-default themes are not supported as the swticher _overwrites_ the entire theme on album change. Custom configuration is planned.
+- Currently this requires a small fork to display correctly. 
+
 ## Features
 
 - Extracts dominant colors from album art using K-means clustering
