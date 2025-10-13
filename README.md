@@ -14,13 +14,9 @@ Automatically generate rmpc themes from album artwork using K-means color extrac
 
 - Extracts dominant colors from album art using K-means clustering
 - Intelligently maps colors to UI elements (background, text, accents, borders)
-- Deterministic pairwise accent/active solver with contrast matrix guardrails
-- Dedicated playing-row styling that reuses the highlight background for readability without muting the accent
 - WCAG AA contrast compliance (4.5:1 ratio)
 - Fast generation (~10ms per image)
 - Automatic theme switching on song change
-- Robust error handling
-- Detailed logging for debugging
 
 ## Quick Start
 
