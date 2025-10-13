@@ -26,6 +26,7 @@ enum ColorRole {
     InactiveItem,
     ProgressBar,
     Scrollbar,
+    HeaderAccent,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -49,7 +50,7 @@ struct RoleAssignment {
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-const ACCENT_BG_MIN: f32 = 3.0;
+const ACCENT_BG_MIN: f32 = 4.5;
 const ACCENT_TEXT_MIN: f32 = 4.5;
 const ACTIVE_BG_MIN: f32 = 3.5;
 const ACTIVE_BG_RELAXED_MIN: f32 = 3.5;
@@ -66,7 +67,8 @@ const FRAME_TEXT_MIN: f32 = 2.0;
 const MIN_CHROMA_THRESHOLD: f32 = 0.05;
 const MIN_HUE_DELTA_ACTIVE_BG: f32 = 30.0;
 const MIN_HUE_DELTA_ACTIVE_TEXT: f32 = 30.0;
-const MIN_HUE_DELTA_ACTIVE_ACCENT: f32 = 20.0;
+const MIN_HUE_DELTA_ACCENT_ACTIVE: f32 = 25.0;
+const MIN_HUE_DELTA_ACCENT_BG: f32 = 20.0;
 
 #[derive(Parser, Debug)]
 #[command(name = "rmpc-theme-gen", version = APP_VERSION)]
@@ -148,6 +150,7 @@ struct DebugOutput {
 struct RolesDebug {
     highlight_text: RoleDebugEntry,
     frame: RoleDebugEntry,
+    playing_row: RoleDebugEntry,
 }
 
 #[derive(Debug, Serialize)]
@@ -1180,6 +1183,80 @@ fn select_frame_color(
     (assignment, debug)
 }
 
+fn select_header_accent(
+    accent_assignment: &RoleAssignment,
+    bg_lab: [f32; 3],
+    text_lab: [f32; 3],
+) -> RoleAssignment {
+    // Try raw accent first; require ≥4.5:1 vs background to ensure header readability
+    let mut best_lab = accent_assignment.lab;
+    let mut best_origin = accent_assignment
+        .origin
+        .as_deref()
+        .unwrap_or("accent")
+        .to_string();
+    let mut best_conf = accent_assignment.confidence.min(0.8);
+
+    let mut contrast_bg = color::calculate_contrast_ratio(best_lab, bg_lab);
+    if contrast_bg < 4.5 {
+        // Adjust only lightness to reach the floor
+        for direction in [-1.0f32, 1.0f32] {
+            let mut candidate = best_lab;
+            for _ in 0..10 {
+                candidate[0] = (candidate[0] + direction * 4.0).clamp(0.0, 100.0);
+                let c_bg = color::calculate_contrast_ratio(candidate, bg_lab);
+                let c_txt = color::calculate_contrast_ratio(candidate, text_lab);
+                if c_bg >= 4.5 {
+                    best_lab = candidate;
+                    best_origin = format!("header_accent_adjusted:{:+.1}", candidate[0] - accent_assignment.lab[0]);
+                    best_conf = best_conf.min(0.75);
+                    contrast_bg = c_bg;
+                    break;
+                }
+                // keep minor guard that we don't crash readability versus text if it overlays
+                if c_txt < 2.0 {
+                    break;
+                }
+            }
+            if contrast_bg >= 4.5 {
+                break;
+            }
+        }
+    }
+
+    // Fallbacks if accent cannot be adjusted sufficiently
+    if contrast_bg < 4.5 {
+        let white = color::rgb8_to_lab([255, 255, 255]);
+        let black = color::rgb8_to_lab([0, 0, 0]);
+        let c_white = color::calculate_contrast_ratio(white, bg_lab);
+        let c_black = color::calculate_contrast_ratio(black, bg_lab);
+        if c_white >= 4.5 && c_white >= c_black {
+            best_lab = white;
+            best_origin = "header_accent:white".to_string();
+            best_conf = 0.6;
+        } else if c_black >= 4.5 {
+            best_lab = black;
+            best_origin = "header_accent:black".to_string();
+            best_conf = 0.6;
+        } else {
+            // last resort: use text color
+            best_lab = text_lab;
+            best_origin = "header_accent:text".to_string();
+            best_conf = 0.6;
+        }
+    }
+
+    role_assignment_from_lab(
+        ColorRole::HeaderAccent,
+        best_lab,
+        None,
+        best_conf,
+        Some(&best_origin),
+        Some(bg_lab),
+        Some(text_lab),
+    )
+}
+
 fn build_pair_metrics(
     accent_lab: [f32; 3],
     active_lab: [f32; 3],
@@ -1303,6 +1380,42 @@ fn solve_with_guardrails(
             evaluated += 1;
             let metrics = build_pair_metrics(accent.lab, active.lab, bg_lab, text_lab);
             if !passes_pairwise_guardrails(&metrics, guardrails) {
+                continue;
+            }
+            if !hue_separation_ok(
+                metrics.active_hue,
+                metrics.active_chroma,
+                metrics.background_hue,
+                metrics.background_chroma,
+                MIN_HUE_DELTA_ACTIVE_BG,
+            ) {
+                continue;
+            }
+            if !hue_separation_ok(
+                metrics.active_hue,
+                metrics.active_chroma,
+                metrics.text_hue,
+                metrics.text_chroma,
+                MIN_HUE_DELTA_ACTIVE_TEXT,
+            ) {
+                continue;
+            }
+            if !hue_separation_ok(
+                metrics.accent_hue,
+                metrics.accent_chroma,
+                metrics.active_hue,
+                metrics.active_chroma,
+                MIN_HUE_DELTA_ACCENT_ACTIVE,
+            ) {
+                continue;
+            }
+            if !hue_separation_ok(
+                metrics.accent_hue,
+                metrics.accent_chroma,
+                metrics.background_hue,
+                metrics.background_chroma,
+                MIN_HUE_DELTA_ACCENT_BG,
+            ) {
                 continue;
             }
 
@@ -1433,6 +1546,42 @@ fn select_accent_and_active(
                 for active in &active_candidates {
                     fallback_evaluated += 1;
                     let metrics = build_pair_metrics(accent.lab, active.lab, bg_lab, text_lab);
+                    if !hue_separation_ok(
+                        metrics.active_hue,
+                        metrics.active_chroma,
+                        metrics.background_hue,
+                        metrics.background_chroma,
+                        MIN_HUE_DELTA_ACTIVE_BG,
+                    ) {
+                        continue;
+                    }
+                    if !hue_separation_ok(
+                        metrics.active_hue,
+                        metrics.active_chroma,
+                        metrics.text_hue,
+                        metrics.text_chroma,
+                        MIN_HUE_DELTA_ACTIVE_TEXT,
+                    ) {
+                        continue;
+                    }
+                    if !hue_separation_ok(
+                        metrics.accent_hue,
+                        metrics.accent_chroma,
+                        metrics.active_hue,
+                        metrics.active_chroma,
+                        MIN_HUE_DELTA_ACCENT_ACTIVE,
+                    ) {
+                        continue;
+                    }
+                    if !hue_separation_ok(
+                        metrics.accent_hue,
+                        metrics.accent_chroma,
+                        metrics.background_hue,
+                        metrics.background_chroma,
+                        MIN_HUE_DELTA_ACCENT_BG,
+                    ) {
+                        continue;
+                    }
                     let candidate = PairwiseResult {
                         accent: accent.clone(),
                         active: active.clone(),
@@ -1449,6 +1598,32 @@ fn select_accent_and_active(
                     }
                     if debug_enabled {
                         fallback_list.push(candidate);
+                    }
+                }
+            }
+
+            if fallback_best.is_none() {
+                for accent in &accent_candidates {
+                    for active in &active_candidates {
+                        let metrics =
+                            build_pair_metrics(accent.lab, active.lab, bg_lab, text_lab);
+                        let candidate = PairwiseResult {
+                            accent: accent.clone(),
+                            active: active.clone(),
+                            metrics,
+                            provenance_score: accent.provenance_rank + active.provenance_rank,
+                        };
+                        match &mut fallback_best {
+                            Some(current) => {
+                                if compare_pairwise_results(&candidate, current) == Ordering::Less {
+                                    *current = candidate.clone();
+                                }
+                            }
+                            None => fallback_best = Some(candidate.clone()),
+                        }
+                        if debug_enabled && fallback_list.len() < 8 {
+                            fallback_list.push(candidate);
+                        }
                     }
                 }
             }
@@ -1551,15 +1726,56 @@ fn select_accent_and_active(
                 txt_oklch,
                 accent_oklch,
             ) {
-                active_assignment = role_assignment_from_lab(
-                    ColorRole::ActiveItem,
-                    lab,
-                    None,
-                    active_assignment.confidence.min(0.6),
-                    Some(&format!("{}+hue", origin)),
-                    Some(bg_lab),
-                    Some(text_lab),
+                let metrics = build_pair_metrics(accent_assignment.lab, lab, bg_lab, text_lab);
+                let hue_ok = hue_separation_ok(
+                    metrics.active_hue,
+                    metrics.active_chroma,
+                    metrics.background_hue,
+                    metrics.background_chroma,
+                    MIN_HUE_DELTA_ACTIVE_BG,
+                ) && hue_separation_ok(
+                    metrics.active_hue,
+                    metrics.active_chroma,
+                    metrics.text_hue,
+                    metrics.text_chroma,
+                    MIN_HUE_DELTA_ACTIVE_TEXT,
+                ) && hue_separation_ok(
+                    metrics.accent_hue,
+                    metrics.accent_chroma,
+                    metrics.active_hue,
+                    metrics.active_chroma,
+                    MIN_HUE_DELTA_ACCENT_ACTIVE,
+                ) && hue_separation_ok(
+                    metrics.accent_hue,
+                    metrics.accent_chroma,
+                    metrics.background_hue,
+                    metrics.background_chroma,
+                    MIN_HUE_DELTA_ACCENT_BG,
                 );
+                if hue_ok && passes_pairwise_guardrails(&metrics, strict_guardrails) {
+                    active_assignment = role_assignment_from_lab(
+                        ColorRole::ActiveItem,
+                        lab,
+                        None,
+                        active_assignment.confidence.min(0.6),
+                        Some(&format!("{}+hue", origin)),
+                        Some(bg_lab),
+                        Some(text_lab),
+                    );
+                } else if let Some((derived_lab, origin_bg)) =
+                    derive_active_from_background(bg_lab, accent_assignment.lab)
+                {
+                    let origin = format!("fallback_bg:{}", origin_bg);
+                    active_assignment = role_assignment_from_lab(
+                        ColorRole::ActiveItem,
+                        derived_lab,
+                        None,
+                        active_assignment.confidence.min(0.6),
+                        Some(&origin),
+                        Some(bg_lab),
+                        Some(text_lab),
+                    );
+                }
             }
         }
     }
@@ -1684,6 +1900,10 @@ fn generate_theme_ron(assignments: &[RoleAssignment], scrollbar_enabled: bool) -
         .iter()
         .find(|a| a.role == ColorRole::Frame)
         .unwrap();
+    let header_accent = assignments
+        .iter()
+        .find(|a| a.role == ColorRole::HeaderAccent)
+        .unwrap();
 
     let scrollbar_block = if scrollbar_enabled {
         format!(
@@ -1709,14 +1929,14 @@ fn generate_theme_ron(assignments: &[RoleAssignment], scrollbar_enabled: bool) -
     header_background_color: "{bg}",
     modal_background_color: "{bg}",
     modal_backdrop: false,
-    preview_label_style: (fg: "{accent}", bg: "{bg}"),
-    preview_metadata_group_style: (fg: "{accent}", bg: "{bg}", modifiers: "Bold"),
+    preview_label_style: (fg: "{header_accent}", bg: "{bg}"),
+    preview_metadata_group_style: (fg: "{header_accent}", bg: "{bg}", modifiers: "Bold"),
     tab_bar: (
         enabled: true,
         active_style: (fg: "{highlight_text}", bg: "{active}", modifiers: "Bold"),
         inactive_style: (fg: "{inactive}", bg: "{bg}"),
     ),
-    highlighted_item_style: (fg: "{accent}", bg: "{bg}", modifiers: "Bold"),
+    highlighted_item_style: (fg: "{highlight_text}", bg: "{active}", modifiers: "Bold"),
     current_item_style: (fg: "{highlight_text}", bg: "{active}", modifiers: "Bold"),
     borders_style: (fg: "{frame}"),
     highlight_border_style: (fg: "{frame}"),
@@ -1758,8 +1978,11 @@ fn generate_theme_ron(assignments: &[RoleAssignment], scrollbar_enabled: bool) -
             width: "35%",
         ),
         (
-            prop: (kind: Property(Album), style: (fg: "{text}", bg: "{bg}"),
-                default: (kind: Text("Unknown Album"), style: (fg: "{text}", bg: "{bg}"))
+            // Keep Album column styling neutral so row-level styles (e.g., playing-not-selected
+            // foreground) can apply uniformly across all columns. Content inherits the row/table
+            // style without forcing its own fg/bg here.
+            prop: (kind: Property(Album),
+                default: (kind: Text("Unknown Album"))
             ),
             width: "30%",
         ),
@@ -1797,9 +2020,9 @@ fn generate_theme_ron(assignments: &[RoleAssignment], scrollbar_enabled: bool) -
         rows: [
             (
                 left: [
-                    (kind: Text("["), style: (fg: "{accent}", modifiers: "Bold")),
-                    (kind: Property(Status(StateV2(playing_label: "Playing", paused_label: "Paused", stopped_label: "Stopped"))), style: (fg: "{accent}", modifiers: "Bold")),
-                    (kind: Text("]"), style: (fg: "{accent}", modifiers: "Bold"))
+                    (kind: Text("["), style: (fg: "{header_accent}", modifiers: "Bold")),
+                    (kind: Property(Status(StateV2(playing_label: "Playing", paused_label: "Paused", stopped_label: "Stopped"))), style: (fg: "{header_accent}", modifiers: "Bold")),
+                    (kind: Text("]"), style: (fg: "{header_accent}", modifiers: "Bold"))
                 ],
                 center: [
                     (kind: Property(Song(Title)), style: (modifiers: "Bold"),
@@ -1821,8 +2044,8 @@ fn generate_theme_ron(assignments: &[RoleAssignment], scrollbar_enabled: bool) -
                     (kind: Text(" kbps)"))
                 ],
                 center: [
-                    (kind: Property(Song(Artist)), style: (fg: "{accent}", modifiers: "Bold"),
-                        default: (kind: Text("Unknown"), style: (fg: "{accent}", modifiers: "Bold"))
+                    (kind: Property(Song(Artist)), style: (fg: "{header_accent}", modifiers: "Bold"),
+                        default: (kind: Text("Unknown"), style: (fg: "{header_accent}", modifiers: "Bold"))
                     ),
                     (kind: Text(" - ")), 
                     (kind: Property(Song(Album)),
@@ -1869,6 +2092,7 @@ fn generate_theme_ron(assignments: &[RoleAssignment], scrollbar_enabled: bool) -
         inactive = inactive.hex,
         highlight_text = highlight_text_role.hex,
         frame = frame.hex,
+        header_accent = header_accent.hex,
         scrollbar = scrollbar_block,
     )
 }
@@ -1971,6 +2195,10 @@ fn map_colors_to_roles(
     let (frame_assignment, frame_debug) = select_frame_color(&accent_assignment, bg_lab, text_lab);
     assignments.push(frame_assignment.clone());
 
+    // 6b. Header accent derived from accent with ≥4.5:1 vs background
+    let header_accent = select_header_accent(&accent_assignment, bg_lab, text_lab);
+    assignments.push(header_accent);
+
     // 6. Inactive/muted - reuse border color
     assignments.push(clone_for_role(
         ColorRole::InactiveItem,
@@ -1992,10 +2220,28 @@ fn map_colors_to_roles(
         active_assignment.confidence,
     ));
 
+    let playing_debug = {
+        let contrast_active =
+            color::calculate_contrast_ratio(highlight_assignment.lab, active_assignment.lab);
+        let contrast_bg = color::calculate_contrast_ratio(highlight_assignment.lab, bg_lab);
+        let contrast_text =
+            color::calculate_contrast_ratio(highlight_assignment.lab, text_lab);
+        let fg_origin = highlight_assignment.origin.as_deref().unwrap_or("highlight");
+        let bg_origin = active_assignment.origin.as_deref().unwrap_or("active");
+        RoleDebugEntry {
+            hex: highlight_assignment.hex.clone(),
+            origin: format!("fg:{} | bg:{}", fg_origin, bg_origin),
+            contrast_against_active: Some(contrast_active),
+            contrast_against_background: Some(contrast_bg),
+            contrast_against_text: Some(contrast_text),
+        }
+    };
+
     let roles_debug = if debug_enabled {
         Some(RolesDebug {
             highlight_text: highlight_debug,
             frame: frame_debug,
+            playing_row: playing_debug,
         })
     } else {
         None

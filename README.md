@@ -15,6 +15,7 @@ Automatically generate rmpc themes from album artwork using K-means color extrac
 - Extracts dominant colors from album art using K-means clustering
 - Intelligently maps colors to UI elements (background, text, accents, borders)
 - Deterministic pairwise accent/active solver with contrast matrix guardrails
+- Dedicated playing-row styling that reuses the highlight background for readability without muting the accent
 - WCAG AA contrast compliance (4.5:1 ratio)
 - Fast generation (~10ms per image)
 - Automatic theme switching on song change
@@ -85,6 +86,7 @@ Check the generator version anytime with:
 - **Text**: Highest contrast against background (≥ 4.5:1 WCAG AA)
 - **Accent & Active**: Evaluated together via a deterministic pairwise solver that maximizes the minimum contrast across (accent↔bg, accent↔text, accent↔active, active↔bg, active↔text) while enforcing ΔE ≥ 25 and ≥25 L* separation. Fallbacks relax peer contrast slightly before resorting to neutral synthetics.
 - **Highlight Text**: Derived from the body text (or accent/neutral fallbacks) to guarantee ≥ 4.5:1 contrast against the active highlight background while staying distinct from the page background.
+- **Playing Row**: Shares the active highlight background while keeping accent text so the “now playing” track stays legible even when not highlighted.
 - **Frame**: A shared stroke color (≥3.0:1 vs background) used for borders, dividers, progress rails, and scrollbar ends/thumb so we avoid inventing extra palette colors.
 - **Guardrails**: Base text and highlight text stay ≥4.5:1 against their backgrounds; accent↔background ≥3.0:1; accent↔active ≥3.0:1 with ΔE ≥ 25. Debug mode (`--debug`) emits pairwise matrices plus chosen highlight/frame colors.
 
@@ -143,14 +145,14 @@ Generate theme from any image:
 ```bash
 rmpc-theme-gen \
   --image /path/to/album-art.jpg \
-  --k 12 \
+  --k 30 \
   --space CIELAB \
   --theme-output ~/.config/rmpc/themes/my-theme.ron
 ```
 
 Options:
 - `--image` (required): Path to album art image
-- `--k` (default: 12): Number of color clusters to extract
+- `--k` (default: 30): Number of color clusters to extract
 - `--space` (default: CIELAB): Color space (CIELAB, RGB, HSL, HSV, YUV, CIELUV)
 - `--theme-output`: Path to output theme file (generates RON format)
 - `--output`: Path to output JSON analysis (optional)
@@ -159,7 +161,7 @@ Options:
 
 ### Debug Diagnostics
 
-Set `--debug` or `RMPC_THEME_DEBUG=1` to embed a `debug.pairwise` block in the JSON output. It captures the evaluated accent/active matrix, top-scoring pairs, and candidate provenance so you can diagnose outliers quickly.
+Set `--debug` or `RMPC_THEME_DEBUG=1` to embed a `debug.pairwise` block in the JSON output. It captures the evaluated accent/active matrix, top-scoring pairs, and candidate provenance so you can diagnose outliers quickly. The `debug.roles` section now also records the highlight text, frame, and playing-row combinations (including contrast against the active background) so you can audit readability regressions.
 
 ## Performance
 

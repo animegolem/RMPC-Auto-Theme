@@ -7,22 +7,22 @@
     draw_borders: true,
     format_tag_separator: " | ",
     browser_column_widths: [20, 38, 42],
-    background_color: "#e0b191",
-    text_color: "#100b09",
-    header_background_color: "#e0b191",
-    modal_background_color: "#e0b191",
+    background_color: "#eccab0",
+    text_color: "#0c0808",
+    header_background_color: "#eccab0",
+    modal_background_color: "#eccab0",
     modal_backdrop: false,
-    preview_label_style: (fg: "#bababa", bg: "#e0b191"),
-    preview_metadata_group_style: (fg: "#bababa", bg: "#e0b191", modifiers: "Bold"),
+    preview_label_style: (fg: "#000000", bg: "#eccab0"),
+    preview_metadata_group_style: (fg: "#000000", bg: "#eccab0", modifiers: "Bold"),
     tab_bar: (
         enabled: true,
-        active_style: (fg: "#e7e7e7", bg: "#0c0c0c", modifiers: "Bold"),
-        inactive_style: (fg: "#414a63", bg: "#e0b191"),
+        active_style: (fg: "#fdfdfd", bg: "#090909", modifiers: "Bold"),
+        inactive_style: (fg: "#351f16", bg: "#eccab0"),
     ),
-    highlighted_item_style: (fg: "#bababa", bg: "#e0b191", modifiers: "Bold"),
-    current_item_style: (fg: "#e7e7e7", bg: "#0c0c0c", modifiers: "Bold"),
-    borders_style: (fg: "#7c5539"),
-    highlight_border_style: (fg: "#7c5539"),
+    highlighted_item_style: (fg: "#fdfdfd", bg: "#090909", modifiers: "Bold"),
+    current_item_style: (fg: "#fdfdfd", bg: "#090909", modifiers: "Bold"),
+    borders_style: (fg: "#886b54"),
+    highlight_border_style: (fg: "#886b54"),
     symbols: (
         song: "",
         dir: "",
@@ -34,23 +34,23 @@
         playlist_style: None,
     ),
     level_styles: (
-        info: (fg: "#bababa", bg: "#e0b191"),
-        warn: (fg: "#f0c674", bg: "#e0b191"),
-        error: (fg: "#cc6666", bg: "#e0b191"),
-        debug: (fg: "#b5bd68", bg: "#e0b191"),
-        trace: (fg: "#b294bb", bg: "#e0b191"),
+        info: (fg: "#d0d0d0", bg: "#eccab0"),
+        warn: (fg: "#f0c674", bg: "#eccab0"),
+        error: (fg: "#cc6666", bg: "#eccab0"),
+        debug: (fg: "#b5bd68", bg: "#eccab0"),
+        trace: (fg: "#b294bb", bg: "#eccab0"),
     ),
     progress_bar: (
         symbols: ["[", "=", ">", " ", "]"],
-        track_style: (fg: "#7c5539", bg: "#e0b191"),
-        elapsed_style: (fg: "#0c0c0c", bg: "#e0b191"),
-        thumb_style: (fg: "#7c5539", bg: "#e0b191"),
+        track_style: (fg: "#886b54", bg: "#eccab0"),
+        elapsed_style: (fg: "#090909", bg: "#eccab0"),
+        thumb_style: (fg: "#886b54", bg: "#eccab0"),
     ),
     scrollbar: (
         symbols: ["│", "█", "▲", "▼"],
-        track_style: (fg: "#7c5539", bg: "#e0b191"),
-        ends_style: (fg: "#7c5539", bg: "#e0b191"),
-        thumb_style: (fg: "#7c5539", bg: "#e0b191"),
+        track_style: (fg: "#886b54", bg: "#eccab0"),
+        ends_style: (fg: "#886b54", bg: "#eccab0"),
+        thumb_style: (fg: "#886b54", bg: "#eccab0"),
     ),
 
     song_table_format: [
@@ -67,8 +67,11 @@
             width: "35%",
         ),
         (
-            prop: (kind: Property(Album), style: (fg: "#100b09", bg: "#e0b191"),
-                default: (kind: Text("Unknown Album"), style: (fg: "#100b09", bg: "#e0b191"))
+            // Keep Album column styling neutral so row-level styles (e.g., playing-not-selected
+            // foreground) can apply uniformly across all columns. Content inherits the row/table
+            // style without forcing its own fg/bg here.
+            prop: (kind: Property(Album),
+                default: (kind: Text("Unknown Album"))
             ),
             width: "30%",
         ),
@@ -106,9 +109,9 @@
         rows: [
             (
                 left: [
-                    (kind: Text("["), style: (fg: "#bababa", modifiers: "Bold")),
-                    (kind: Property(Status(StateV2(playing_label: "Playing", paused_label: "Paused", stopped_label: "Stopped"))), style: (fg: "#bababa", modifiers: "Bold")),
-                    (kind: Text("]"), style: (fg: "#bababa", modifiers: "Bold"))
+                    (kind: Text("["), style: (fg: "#000000", modifiers: "Bold")),
+                    (kind: Property(Status(StateV2(playing_label: "Playing", paused_label: "Paused", stopped_label: "Stopped"))), style: (fg: "#000000", modifiers: "Bold")),
+                    (kind: Text("]"), style: (fg: "#000000", modifiers: "Bold"))
                 ],
                 center: [
                     (kind: Property(Song(Title)), style: (modifiers: "Bold"),
@@ -116,8 +119,8 @@
                     )
                 ],
                 right: [
-                    (kind: Property(Widget(ScanStatus)), style: (fg: "#100b09")),
-                    (kind: Property(Widget(Volume)), style: (fg: "#100b09"))
+                    (kind: Property(Widget(ScanStatus)), style: (fg: "#0c0808")),
+                    (kind: Property(Widget(Volume)), style: (fg: "#0c0808"))
                 ]
             ),
             (
@@ -130,8 +133,8 @@
                     (kind: Text(" kbps)"))
                 ],
                 center: [
-                    (kind: Property(Song(Artist)), style: (fg: "#bababa", modifiers: "Bold"),
-                        default: (kind: Text("Unknown"), style: (fg: "#bababa", modifiers: "Bold"))
+                    (kind: Property(Song(Artist)), style: (fg: "#000000", modifiers: "Bold"),
+                        default: (kind: Text("Unknown"), style: (fg: "#000000", modifiers: "Bold"))
                     ),
                     (kind: Text(" - ")), 
                     (kind: Property(Song(Album)),
@@ -141,10 +144,10 @@
                 right: [
                     (
                         kind: Property(Widget(States(
-                            active_style: (fg: "#100b09", modifiers: "Bold"),
-                            separator_style: (fg: "#7c5539")))
+                            active_style: (fg: "#0c0808", modifiers: "Bold"),
+                            separator_style: (fg: "#886b54")))
                         ),
-                        style: (fg: "#7c5539")
+                        style: (fg: "#886b54")
                     ),
                 ]
             ),

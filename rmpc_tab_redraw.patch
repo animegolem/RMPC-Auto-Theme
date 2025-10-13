@@ -1,0 +1,167 @@
+diff --git a/src/core/event_loop.rs b/src/core/event_loop.rs
+index 1a9bfd7..4ba8b97 100644
+--- a/src/core/event_loop.rs
++++ b/src/core/event_loop.rs
+@@ -14,6 +14,7 @@ use crate::{
+     config::{
+         Config,
+         cli::{Command, RemoteCommandQuery},
++        tabs::{PaneType, SizedPaneOrSplit, TabName},
+     },
+     ctx::Ctx,
+     mpd::{
+@@ -27,25 +28,38 @@ use crate::{
+         macros::{status_error, status_warn},
+         mpd_client_ext::MpdClientExt,
+         mpd_query::{
+-            EXTERNAL_COMMAND,
+-            GLOBAL_QUEUE_UPDATE,
+-            GLOBAL_STATUS_UPDATE,
+-            GLOBAL_STICKERS_UPDATE,
+-            GLOBAL_VOLUME_UPDATE,
+-            MpdQueryResult,
+-            run_status_update,
++            EXTERNAL_COMMAND, GLOBAL_QUEUE_UPDATE, GLOBAL_STATUS_UPDATE, GLOBAL_STICKERS_UPDATE,
++            GLOBAL_VOLUME_UPDATE, MpdQueryResult, run_status_update,
+         },
+     },
+     ui::{
+-        KeyHandleResult,
+-        StatusMessage,
+-        Ui,
+-        UiAppEvent,
+-        UiEvent,
++        KeyHandleResult, StatusMessage, Ui, UiAppEvent, UiEvent,
+         modals::{info_modal::InfoModal, select_modal::SelectModal},
+     },
+ };
+ 
++fn pane_requires_full_clear(pane: &SizedPaneOrSplit) -> bool {
++    match pane {
++        SizedPaneOrSplit::Pane(p) => matches!(
++            p.pane,
++            PaneType::Directories
++                | PaneType::Albums
++                | PaneType::Artists
++                | PaneType::AlbumArtists
++                | PaneType::Playlists
++                | PaneType::Search
++                | PaneType::Browser { .. }
++        ),
++        SizedPaneOrSplit::Split { panes, .. } => {
++            panes.iter().any(|sub| pane_requires_full_clear(&sub.pane))
++        }
++    }
++}
++
++fn tab_requires_full_clear(config: &Config, tab: &TabName) -> bool {
++    config.tabs.tabs.get(tab).map_or(false, |tab_def| pane_requires_full_clear(&tab_def.panes))
++}
++
+ static ON_RESIZE_SCHEDULE_ID: LazyLock<Id> = LazyLock::new(id::new);
+ 
+ pub fn init<B: Backend + std::io::Write + Send + 'static>(
+@@ -189,26 +203,48 @@ fn main_task<B: Backend + std::io::Write>(
+                     }
+                     render_wanted = true;
+                 }
+-                AppEvent::UserKeyInput(key) => match ui.handle_key(&mut key.into(), &mut ctx) {
+-                    Ok(KeyHandleResult::None) => continue,
+-                    Ok(KeyHandleResult::Quit) => {
+-                        if let Err(err) = ui.on_event(UiEvent::Exit, &mut ctx) {
+-                            log::error!(error:? = err, event:?; "UI failed to handle quit event");
++                AppEvent::UserKeyInput(key) => {
++                    let prev_tab = ctx.active_tab.clone();
++                    match ui.handle_key(&mut key.into(), &mut ctx) {
++                        Ok(KeyHandleResult::None) => {}
++                        Ok(KeyHandleResult::Quit) => {
++                            if let Err(err) = ui.on_event(UiEvent::Exit, &mut ctx) {
++                                log::error!(error:? = err, event:?; "UI failed to handle quit event");
++                            }
++                            break;
++                        }
++                        Err(err) => {
++                            status_error!(err:?; "Error: {}", err.to_status());
++                            render_wanted = true;
+                         }
+-                        break;
+                     }
+-                    Err(err) => {
+-                        status_error!(err:?; "Error: {}", err.to_status());
++                    if ctx.active_tab != prev_tab
++                        && tab_requires_full_clear(&ctx.config, &ctx.active_tab)
++                    {
++                        if let Err(err) = terminal.clear() {
++                            log::error!(error:? = err; "Failed to clear terminal after key tab change");
++                        }
+                         render_wanted = true;
+                     }
+-                },
+-                AppEvent::UserMouseInput(ev) => match ui.handle_mouse_event(ev, &mut ctx) {
+-                    Ok(()) => {}
+-                    Err(err) => {
+-                        status_error!(err:?; "Error: {}", err.to_status());
++                }
++                AppEvent::UserMouseInput(ev) => {
++                    let prev_tab = ctx.active_tab.clone();
++                    match ui.handle_mouse_event(ev, &mut ctx) {
++                        Ok(()) => {}
++                        Err(err) => {
++                            status_error!(err:?; "Error: {}", err.to_status());
++                            render_wanted = true;
++                        }
++                    }
++                    if ctx.active_tab != prev_tab
++                        && tab_requires_full_clear(&ctx.config, &ctx.active_tab)
++                    {
++                        if let Err(err) = terminal.clear() {
++                            log::error!(error:? = err; "Failed to clear terminal after mouse tab change");
++                        }
+                         render_wanted = true;
+                     }
+-                },
++                }
+                 AppEvent::Status(mut message, level, timeout) => {
+                     ctx.messages.push(StatusMessage {
+                         level,
+@@ -503,13 +539,23 @@ fn main_task<B: Backend + std::io::Write>(
+                     }
+                     render_wanted = true;
+                 }
+-                AppEvent::UiEvent(event) => match ui.on_ui_app_event(event, &mut ctx) {
+-                    Ok(()) => {}
+-                    Err(err) => {
+-                        status_error!(err:?; "Error: {}", err.to_status());
++                AppEvent::UiEvent(event) => {
++                    // Force a full clear on tab changes that render multi-pane lists; helps avoid stale cells.
++                    let is_tab_change = matches!(event, UiAppEvent::ChangeTab(_));
++                    match ui.on_ui_app_event(event, &mut ctx) {
++                        Ok(()) => {}
++                        Err(err) => {
++                            status_error!(err:?; "Error: {}", err.to_status());
++                            render_wanted = true;
++                        }
++                    }
++                    if is_tab_change && tab_requires_full_clear(&ctx.config, &ctx.active_tab) {
++                        if let Err(err) = terminal.clear() {
++                            log::error!(error:? = err; "Failed to clear terminal after tab change");
++                        }
+                         render_wanted = true;
+                     }
+-                },
++                }
+                 AppEvent::RemoteSwitchTab { tab_name } => {
+                     let target_tab = tab_name.as_str().into();
+ 
+@@ -521,6 +567,11 @@ fn main_task<B: Backend + std::io::Write>(
+                         {
+                             status_error!(err:?; "Error switching to tab '{}': {}", tab_name, err.to_status());
+                         }
++                        if tab_requires_full_clear(&ctx.config, &ctx.active_tab) {
++                            if let Err(err) = terminal.clear() {
++                                log::error!(error:? = err; "Failed to clear terminal after remote tab change");
++                            }
++                        }
+                     } else {
+                         let available = ctx
+                             .config

@@ -1,0 +1,41 @@
+diff --git a/src/ui/panes/queue.rs b/src/ui/panes/queue.rs
+index 291581d..447c0f2 100644
+--- a/src/ui/panes/queue.rs
++++ b/src/ui/panes/queue.rs
+@@ -17,8 +17,7 @@ use crate::{
+     MpdQueryResult,
+     config::{
+         keys::{
+-            GlobalAction,
+-            QueueActions,
++            GlobalAction, QueueActions,
+             actions::{AddKind, AutoplayKind, RateKind},
+         },
+         tabs::PaneType,
+@@ -1315,14 +1314,20 @@ struct QueueRow {
+ 
+ impl QueueRow {
+     fn into_row<'a>(self, cells: impl Iterator<Item = Line<'a>>) -> Row<'a> {
+-        let mut row = if let Some(style) = self.cell_style {
+-            Row::new(cells.map(|column| column.patch_style(style)))
+-        } else {
+-            Row::new(cells)
+-        };
++        let style = self.cell_style;
++        let row_cells = cells.map(|line| {
++            let cell = Cell::from(line);
++            if let Some(style) = style {
++                cell.style(style)
++            } else {
++                cell
++            }
++        });
++
++        let mut row = Row::new(row_cells);
+ 
+         if self.underlined {
+-            row = row.style(self.cell_style.unwrap_or_default().underlined());
++            row = row.style(style.unwrap_or_default().underlined());
+         }
+ 
+         row
