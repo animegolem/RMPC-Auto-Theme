@@ -78,13 +78,14 @@ Check the generator version anytime with:
 
 ## Color Mapping Algorithm
 
-- **Background**: Most dominant color with low saturation (S < 0.4)
-- **Text**: Highest contrast against background (≥ 4.5:1 WCAG AA)
-- **Accent & Active**: Evaluated together via a deterministic pairwise solver that maximizes the minimum contrast across (accent↔bg, accent↔text, accent↔active, active↔bg, active↔text) while enforcing ΔE ≥ 25 and ≥25 L* separation. Fallbacks relax peer contrast slightly before resorting to neutral synthetics.
-- **Highlight Text**: Derived from the body text (or accent/neutral fallbacks) to guarantee ≥ 4.5:1 contrast against the active highlight background while staying distinct from the page background.
-- **Playing Row**: Shares the active highlight background while keeping accent text so the “now playing” track stays legible even when not highlighted.
-- **Frame**: A shared stroke color (≥3.0:1 vs background) used for borders, dividers, progress rails, and scrollbar ends/thumb so we avoid inventing extra palette colors.
-- **Guardrails**: Base text and highlight text stay ≥4.5:1 against their backgrounds; accent↔background ≥3.0:1; accent↔active ≥3.0:1 with ΔE ≥ 25. Debug mode (`--debug`) emits pairwise matrices plus chosen highlight/frame colors.
+- **Background**: Most dominant cluster with low saturation (S < 0.4) and reasonable lightness.
+- **Text**: Highest-contrast cluster (or synthetic fallback) that clears WCAG AA (≥ 4.5:1) against the background.
+- **Accent & Active**: Chosen together by a deterministic solver that maximizes the minimum contrast across all pairings (accent↔bg / text / active, active↔bg / text). Guardrails enforce ΔE ≥ 25, ≥ 25 L* separation, accent↔bg ≥ 4.5:1, and hue deltas (OKLCH) against background/text/each other to avoid hue collisions. Relaxed passes and OKLCH hue-rotation fallbacks keep color variety before resorting to neutral synthetics.
+- **Highlight Text**: Derived from text/accent candidates and adjusted in OKLCH so it remains ≥ 4.5:1 over the active highlight background while staying distinguishable from the page background.
+- **Playing Row**: “Playing but not selected” rows keep the page background and reuse the highlight text foreground; the currently selected row still uses the active highlight background.
+- **Frame & Scrollbar**: A shared frame color (≥ 3.0:1 vs background) drives borders, dividers, progress rails, and scrollbar track/thumb, ensuring structural elements stay visible without inventing extra palette colors.
+- **Header & Preview Accent**: A header-specific accent is derived from the main accent (lightness adjusted until ≥ 4.5:1 vs background) and reused for header `[Playing]` badges and library preview labels/metadata so they remain legible on light and dark themes.
+- **Debugging**: `--debug` embeds the evaluated accent/active matrix plus role summaries (highlight/frame/header/playing row) so you can audit contrast and provenance.
 
 ## Project Structure
 
