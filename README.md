@@ -20,6 +20,26 @@ Automatically generate rmpc themes from album artwork using K-means color extrac
 
 ## Quick Start
 
+### AUR
+
+There is a PKGBUILD in the
+[Arch User Repository](https://aur.archlinux.org/packages/rmpc-auto-theme-git).
+This builds from the Cargo specification and installs `rmpc-theme-gen` to `/usr/bin/`
+and `on_song_change.sh` to `/usr/share/rmpc-auto-theme/`.
+
+Simply run the `PKGBUILD` using your preferred AUR method and
+add the following to `~/.config/rmpc/config.ron`:
+
+```
+(
+       ...
+       theme: "current-song",
+       enable_config_hot_reload: true,
+       on_song_change: ["/usr/share/rmpc-auto-theme/on_song_change.sh"],
+       ...
+)
+```
+
 ### Building from Source
 
 ```bash
