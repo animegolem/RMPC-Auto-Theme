@@ -1,0 +1,174 @@
+#+TITLE: rmpc-auto-theme v2 — normative specification
+#+OPTIONS: toc:2
+
+| Status | Revision | Date       |
+|--------+----------+------------|
+| Draft  | 0.1      | 2026-08-19 |
+
+This document is the constitution of the project: every design
+decision derives from it, and amendments land here before they land
+in code. Public-facing prose (README, user docs) follows the Google
+developer documentation style guide; this spec favors normative
+precision over style where the two conflict.
+
+* 1. Purpose and scope
+
+rmpc-auto-theme generates a complete rmpc theme from the currently
+playing album's artwork and applies it to running rmpc instances
+without restart, while guaranteeing WCAG-verified readability for
+every generated color role.
+
+In scope: color extraction, role assignment, theme emission, the
+song-change trigger path, and application to rmpc ≥ 0.11. Out of
+scope: rmpc layout/tab design (static user config; see §8), the
+rmpcd plugin host (§9), and any rmpc fork or patch (ruled obsolete
+rev 0.1; the v1 patches were repaint workarounds, not application
+mechanisms).
+
+* 2. Color doctrine (normative)
+
+Ruled rev 0.1, owner-confirmed: *values are truth; colors are mapped
+onto values.* Operationally — *own lightness, harvest hue*:
+
+- Each color role owns a fixed OKLab lightness (tone) band, chosen so
+  that the role's WCAG contrast minimums against its counterpart
+  roles are satisfiable by construction before any art is seen.
+- Art contributes hue and chroma only. Extracted cluster colors are
+  projected into the target role's tone band (L replaced, hue held,
+  chroma gamut-compressed as needed) rather than accepted at their
+  native lightness.
+- Guardrails (§5) therefore act as verification, not rescue. The v1
+  pattern of accepting art lightness and ladder-searching to repair
+  contrast afterward is retired; ladder search survives only as a
+  last-resort fallback inside synthesis.
+- Neutrals are legitimate: when art chroma is below the neutral
+  threshold, roles fall back to the configured neutral ramp rather
+  than inventing chroma.
+
+* 3. Architecture
+
+One short-lived generator process per song change; no daemon.
+
+#+BEGIN_EXAMPLE
+on_song_change hook (sh, thin)          rmpc-theme-gen (Rust binary)
+  art-hash short-circuit          ┌────────────────────────────────┐
+  rmpc albumart -o - ───────────► │ 1 extract  (color-core crate)  │
+  exit 0 on all failures          │ 2 assign   (role solver)       │
+                                  │ 3 emit     (base-theme patch)  │
+                                  └──────────────┬─────────────────┘
+                                                 ▼
+                                  rmpc remote --pid $PID set theme -
+                                  (+ optional OSC 11 terminal bg)
+#+END_EXAMPLE
+
+The hook receives rmpc's env payload (=$FILE=, =$PID=, tag vars) and
+targets the emitting instance via =--pid=. The generator reads art
+bytes on stdin and writes a complete theme document on stdout;
+side-effect-free except logging. All policy lives in the binary; the
+hook stays under ~60 lines.
+
+* 4. Extraction engine
+
+The engine is =color-core=: a tauri-free crate carved from
+=~/git/color-tool-kmeans= (workspace member there; consumed here by
+path dependency, later git dependency). Never copy engine files into
+this repo — the v1 copy diverged and rotted (ruled rev 0.1).
+
+Contract (from the parent's current pipeline, which is normative):
+- OKLab-only clustering (k-means++, SoA/SIMD, deterministic seeds).
+- Alpha-aware sampling with quality presets; default preset 2.
+- Radius-guarded agglomerative cluster merge (dedup).
+- Chroma-compressing gamut mapping that preserves L and hue.
+- Output: clusters as {oklab, oklch, rgb, share}, dominance-ordered.
+
+Attribution: =color.rs= carries CC BY 3.0 credit (Laurent Jégou,
+Color-tool); the obligation travels with the crate.
+
+* 5. Role model and guardrails
+
+Eight primary roles: background, text, accent, active, highlight
+text, frame, header accent, inactive. Derived roles are explicit
+aliases (inactive = frame; progress = accent; scrollbar = active).
+The emitted template touches ≈9 tokens and nothing else.
+
+Guardrail floors (defaults; config-overridable, §7) — carried from
+v1 where they were proven in daily use:
+| pair                    | minimum        |
+|-------------------------+----------------|
+| accent vs background    | 4.5:1          |
+| text vs background      | 4.5:1          |
+| active vs background    | 3.5:1          |
+| highlight text / active | 4.5:1          |
+| frame vs background     | 3.0:1          |
+| peer ΔE (CIE76)         | 25             |
+| hue separation          | 30° (chroma-gated; neutrals exempt) |
+
+Contrast is WCAG relative luminance computed on sRGB, never an L*
+proxy. The pairwise accent×active solver (strict → relaxed →
+best-effort passes) is retained from v1, as is per-role provenance
+(=origin=, =confidence=, measured contrasts) surfaced by =--debug=.
+
+* 6. Theme emission
+
+- The generator parses the user's base theme with the =ron= crate,
+  patches color tokens only, and emits a COMPLETE theme document.
+  Rationale (verified against rmpc 0.11 source): =UiConfigFile= is
+  =#[serde(default)]= — omitted fields reset to built-in defaults,
+  not to the loaded theme, so partial documents destroy user layout.
+- Emitted documents keep the three RON pragmas (=implicit_some=,
+  =unwrap_newtypes=, =unwrap_variant_newtypes=).
+- Colors are emitted as 7-byte hex (=#rrggbb=) only; rmpc accepts no
+  shorthand or alpha forms.
+- The base theme defaults to rmpc's =example_theme.ron= equivalent
+  (upstream-test-guaranteed equal to =UiConfigFile::default()=) when
+  the user has none.
+
+* 7. Trigger, application, and failure policy
+
+- Application channel: =rmpc remote --pid $PID set theme -= (stdin).
+  In-place file write + hot reload is the documented fallback and
+  MUST write in place (no rename; the watcher filters on
+  close-write).
+- Art acquisition: =rmpc albumart -o -=; exit codes 0/1/2/3 are
+  honored (2 = no art → fallback theme path; 3 = no song → exit).
+- Short-circuit: SHA-256 of art bytes; unchanged hash exits before
+  extraction (same-album tracks must not regenerate or flicker).
+  Missing hash tool degrades to always-regenerate, never to failure.
+- Failure policy: the hook exits 0 on every failure path; theming
+  must never disrupt playback. Errors log to a single capped file
+  (unlike v1's unrotated 16 MB log).
+- Determinism: fixed seeds end-to-end; identical art bytes produce
+  an identical theme document.
+- Optional OSC 11 terminal-background sync, gated on a writable
+  =/dev/tty= and on config.
+
+* 8. Boundary with the UI redesign
+
+The four-view layout (Library / Now Playing / Lyrics / Search on
+keybinds; hidden tab bar) is static user configuration owned by
+=~/git/personal-theming/RAG/design/=: =tabs:= and keybinds in
+config.ron, chrome =layout= in the base theme. This project never
+emits layout, tabs, headers, or formats. Corrections to that
+handoff, verified against 0.11: tabs belong in config.ron, and the
+tab bar hides by omitting =Pane(Tabs)= from the theme layout
+(=tab_bar.enabled= is deprecated). The Cava pane requires the =cava=
+binary (not yet installed).
+
+* 9. Paths not taken and future work
+
+- rmpcd Lua plugin host: the natural long-term home (song_change
+  hook, =mpd.read_picture=, =process.spawn=), but upstream declares
+  it unstable. Revisit when rmpcd stabilizes.
+- =album_art.custom_loader=: a two-way art hook worth evaluating for
+  a zero-copy pipeline once the v2 baseline ships.
+- Multi-terminal recoloring (pywal-style OSC sequences beyond
+  background) — out of scope for v2.
+- Prior art surveyed rev 0.1: pywal/pywal16, wpgtk, wallust,
+  matugen. None combine art extraction with WCAG-verified role
+  assignment; matugen's fixed-tone palettes inspired §2.
+
+* 10. Revision log
+
+| rev | date       | change |
+|-----+------------+--------|
+| 0.1 | 2026-08-19 | Initial specification from the three-codebase survey (v1 archive, color-tool-kmeans, rmpc 0.11 source). Ruled: no fork; color doctrine (own lightness, harvest hue — owner-confirmed "values are truth"); color-core extraction over file copies; complete-document emission; v1 guardrail floors carried as defaults; hook failure policy; rmpcd deferred. |
