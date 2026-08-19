@@ -8,8 +8,8 @@ tags:
   - color
 date_created: 2026-08-19
 date_completed:
-kanban_status: backlog
-AI_IMP_spawned: false
+kanban_status: in-progress
+AI_IMP_spawned: true
 ---
 
 # AI-EPIC-001-album-art-driven-live-theming
@@ -117,6 +117,13 @@ the three-codebase survey recorded in README.md and the v1 archive.
 
 ## Implementation Breakdown
 
-To be filled when IMP tickets are cut. Anticipated seams: color-core
-extraction (upstream repo) · generator core (roles/solver/emission) ·
-hook + config + packaging · UI-config rollout + live acceptance.
+Cut 2026-08-19 (owner delegated the breakdown this session):
+- [[AI-IMP-001-color-core-extraction]] — engine crate split in
+  color-tool-kmeans (FR-1, FR-2).
+- [[AI-IMP-002-theme-generator-core]] — roles, solver, tone-band
+  projection, RON emission (FR-3, FR-4, FR-5, FR-9).
+- [[AI-IMP-003-hook-config-packaging]] — trigger, config file,
+  installer, live smoke (FR-6, FR-7, FR-8).
+- [[AI-IMP-004-four-view-ui-rollout]] — static UI config, applied
+  live 2026-08-19; owner visual verification pending (FR-10).
+Order: 004 (mostly done) ∥ 001 → 002 → 003.

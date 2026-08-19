@@ -6,17 +6,33 @@
 
 | Status | EPICs | IMPs |
 |--------|-------|------|
-| In Progress | 0 | 0 |
-| Planned | 1 | 0 |
+| In Progress | 1 | 0 |
+| Planned | 0 | 4 |
 | Deferred | 0 | 0 |
 | Cancelled | 0 | 0 |
 | Completed | 0 | 0 |
-| **Total** | **1** | **0** |
+| **Total** | **1** | **4** |
 
-## Planned
+## In Progress
 
 ### [[AI-EPIC-001-album-art-driven-live-theming|EPIC-001: Album art driven live theming]]
 > rmpc runs with a static theme that ignores the album being played.
+
+**IMPs:**
+- [[AI-IMP-001-color-core-extraction|IMP-001]] Color core extraction — planned
+- [[AI-IMP-002-theme-generator-core|IMP-002]] Theme generator core — planned
+- [[AI-IMP-003-hook-config-packaging|IMP-003]] Hook config packaging — planned
+- [[AI-IMP-004-four-view-ui-rollout|IMP-004]] Four view ui rollout — planned
+
+---
+
+## Size Watch
+
+Generated from tracked files; binary assets excluded.
+
+### > 300 LOC
+
+- RAG/scripts/generate-index.sh (575 LOC)
 
 ---
 
