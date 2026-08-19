@@ -71,4 +71,14 @@ four designed views render with no tab bar and readable defaults.
 
 ### Issues Encountered 
 
-(to be filled during implementation)
+- First render review (owner, 2026-08-19): queue block flush against
+  the window edge, art size/placement drifting with resizes, and the
+  hidden tab bar judged a mistake. v2.1 amendments applied same day:
+  spacer-pane insets, fixed 64-col art column with top alignment,
+  tab bar restored, tab order now 1 Now Playing / 2 Library /
+  3 Lyrics / 4 Search. Handoff updated in personal-theming.
+- macOS: rmpc hot reload inert; debuginfo false-positives on tab
+  components (SPEC §7). Applied over IPC both times.
+- Cava caveat: on macOS cava needs a loopback input (e.g. BlackHole)
+  to see MPD output; with the default mic input the pane may stay
+  empty or react to room noise.
