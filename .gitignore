@@ -1,30 +1,3 @@
-# Rust build artifacts
-target/
-Cargo.lock
-
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# macOS
+.archive/
 .DS_Store
-
-# Generated theme files (user-specific)
-themes/current-song.ron
-
-# Logs (user-specific)
-theme-switcher.log
-
-# Test images (optional, may want to commit some)
-test-results/*.png
-test-results/*.jpg
-test-results/*.jpeg
-
-# Temporary files
-*.tmp
-/tmp/
-/pkgs/
-/bench-assets/
+target/
