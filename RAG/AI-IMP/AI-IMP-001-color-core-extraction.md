@@ -5,12 +5,12 @@ tags:
   - Implementation
   - color
   - upstream
-kanban_status: planned
+kanban_status: completed
 depends_on: []
 parent_epic: [[AI-EPIC-001-album-art-driven-live-theming]]
 confidence_score: 0.8
 date_created: 2026-08-19
-date_completed:
+date_completed: 2026-08-20
 ---
 
 # AI-IMP-001-color-core-extraction
@@ -55,12 +55,12 @@ regression net for the move.
 Before marking an item complete on the checklist MUST **stop** and **think**. Have you validated all aspects are **implemented** and **tested**? 
 </CRITICAL_RULE>
 
-- [ ] Workspace member `color-core` builds with no tauri deps
+- [x] Workspace member `color-core` builds with no tauri deps
       (`cargo tree` shows none).
-- [ ] `analyze` accepts in-memory bytes as well as a path.
-- [ ] All existing Rust tests pass in both crates; CI config updated.
-- [ ] Attribution files travel with the crate.
-- [ ] Upstream repo gates green: fmt, clippy -D warnings, tests.
+- [x] `analyze` accepts in-memory bytes as well as a path.
+- [x] All existing Rust tests pass in both crates; CI config updated.
+- [x] Attribution files travel with the crate.
+- [x] Upstream repo gates green: fmt, clippy -D warnings, tests.
 
 ### Acceptance Criteria
 
@@ -72,4 +72,14 @@ twice, THEN both palettes are identical.
 
 ### Issues Encountered 
 
-(to be filled during implementation)
+Delegated agent sitting, branch `imp/color-core`, 3 commits, lead-
+reviewed and ff-merged to color-tool-kmeans main (36bc0bb..2cc2000).
+Test count grew 46 -> 48 (2 new: bytes determinism, path-vs-bytes
+equivalence); none lost. Root workspace worked (tauri-build resolves);
+Cargo.lock/target moved to root per repo lock convention; CI bundle
+path updated + new CI step fails if color-core ever gains a tauri
+dep. Deviations accepted: ATTRIBUTIONS scoped to crate-relevant
+credits; two pre-existing test-only clippy lints fixed (surfaced by
+--all-targets). Noted for later: analyze keeps a println! merge log
+(needs a logging story); upstream CLAUDE.md architecture map now
+stale on moved files.

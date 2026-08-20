@@ -73,9 +73,9 @@ the three-codebase survey recorded in README.md and the v1 archive.
 
 ### Functional Requirements
 
-- [ ] FR-1: Extract a dominance-ordered OKLab palette from album art
+- [x] FR-1: Extract a dominance-ordered OKLab palette from album art
       bytes on stdin using the `color-core` crate.
-- [ ] FR-2: Carve `color-core` (color, kmeans, image_pipeline, merge,
+- [x] FR-2: Carve `color-core` (color, kmeans, image_pipeline, merge,
       analyze orchestration) out of color-tool-kmeans as a tauri-free
       workspace crate consumed here by path dependency, carrying the
       CC BY 3.0 attribution.
