@@ -33,6 +33,7 @@ Generated from tracked files; binary assets excluded.
 ### > 300 LOC
 
 - RAG/scripts/generate-index.sh (575 LOC)
+- Cargo.lock (528 LOC)
 
 ---
 
