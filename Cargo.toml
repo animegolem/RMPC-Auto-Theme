@@ -1,0 +1,9 @@
+[package]
+name = "rmpc-theme-gen"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+color-core = { path = "../color-tool-kmeans/color-core" }
+ron = "0.12"
+serde = { version = "1", features = ["derive"] }
