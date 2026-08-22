@@ -46,7 +46,7 @@ destructive-op fence.
   `.workspaces/code-lead/primary` (create with
   `RAG/scripts/workspace-create.sh`).
 - Channel: `.relay/` — event-driven: launchd doorbell on `inbox/`
-  rings live sessions named `mediaplayer*`; channel watchdog every
+  rings live sessions named `notan*`; channel watchdog every
   30 min; `RAG/scripts/channel-scan.sh --once` (with
   `OWNER_REPO=~/git/RMPC-Auto-Theme`) at every wake and ring;
   `RAG/scripts/channel-carrier.sh ack-file <path>` after processing
