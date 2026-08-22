@@ -6,3 +6,7 @@ target/
 # Added by cargo
 
 /target
+
+# two-lead channel + code-lead clones (local only)
+.relay/
+.workspaces/
