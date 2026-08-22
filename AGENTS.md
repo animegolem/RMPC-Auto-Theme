@@ -16,6 +16,11 @@ destructive-op fence.
 - Ticket root: `RAG/`.
 - Round-1 skip threshold: tickets with `confidence_score` below
   `0.9` always get a pre-implementation review.
+- Your mailbox is `.relay/` in this repo, today with no Postmaster
+  involvement: letters to the Review Lead go in `.relay/inbox/`
+  (`channel-carrier.sh submit --direction inbox`), verdicts and
+  briefs arrive in `.relay/outbox/`. When Postmaster delivery opens,
+  nothing about this repo changes.
 - Channel wake: a launchd bell delivers "scan the channel" when
   `.relay/outbox`, `.relay/carrier`, `ISSUES.md`, or
   `OBSERVATIONS.md` change. On every wake run
