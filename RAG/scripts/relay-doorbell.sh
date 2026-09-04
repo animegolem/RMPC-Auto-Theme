@@ -22,6 +22,17 @@ CLAUDE_BIN="${CLAUDE_BIN:-$HOME/.local/bin/claude}"
 DEBOUNCE_MIN="${DEBOUNCE_MIN:-3}"
 LOG="$STATE_DIR/rings.log"
 mkdir -p "$STATE_DIR"
+# Spurious-wake guard: launchd WatchPaths fires on vnode noise (Spotlight,
+# backups, sleep-wake). Ring only when the watched mail actually changed:
+# sorted (path, sha256) fingerprint vs the last SUCCESSFUL ring. A failed
+# ring never records a fingerprint, so real mail can't be skipped past it.
+WATCH_DIR="${WATCH_DIR:-}"
+if [[ -n "$WATCH_DIR" && -d "$WATCH_DIR" ]]; then
+  fp=$(find "$WATCH_DIR" -type f ! -name '*.tmp' -print0 2>/dev/null | sort -z | xargs -0 shasum -a 256 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
+  if [[ -n "$fp" && "$fp" == "$(cat "$STATE_DIR/last-fingerprint" 2>/dev/null)" ]]; then
+    echo "$(date -u +%FT%TZ) spurious wake suppressed (fingerprint unchanged)" >> "$STATE_DIR/rings.log"; exit 0
+  fi
+fi
 now=$(date +%s); last=$(cat "$STATE_DIR/last-ring" 2>/dev/null || echo 0)
 if (( now - last < DEBOUNCE_MIN * 60 )); then echo "$(date -u +%FT%TZ) debounced" >> "$LOG"; exit 0; fi
 echo "$now" > "$STATE_DIR/last-ring"
@@ -31,3 +42,4 @@ out=$("$CLAUDE_BIN" -p --model haiku \
   2>&1 | tail -1); status=$?
 if (( status != 0 )); then echo "$(date -u +%FT%TZ) ring FAILED (exit $status) → ${out}" >> "$LOG"; exit 1; fi
 echo "$(date -u +%FT%TZ) ring → ${out}" >> "$LOG"
+[[ -n "${fp:-}" ]] && echo "$fp" > "$STATE_DIR/last-fingerprint"
