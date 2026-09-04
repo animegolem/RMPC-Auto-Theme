@@ -3,7 +3,7 @@
 
 | Status | Revision | Date       |
 |--------+----------+------------|
-| Draft  | 0.3      | 2026-09-04 |
+| Draft  | 0.4      | 2026-09-04 |
 
 This document is the constitution of the project: every design
 decision derives from it, and amendments land here before they land
@@ -109,10 +109,18 @@ best-effort passes) is retained from v1, as is per-role provenance
 (=origin=, =confidence=, measured contrasts) surfaced by =--debug=.
 
 Default tone bands (rev 0.3; config-overridable at AI-IMP-003, OKLab
-L, target with permitted band). Chosen so every §5 contrast floor is
-satisfiable by construction; the implementation must carry a
-property test proving each floor holds across its counterpart
-role's full band before any art is seen:
+L, target with permitted band). The bands are SEARCH
+BOUNDS, not proofs (rev 0.4 — rev 0.3's satisfiable-by-construction
+claim is withdrawn: OKLab L bounds perceptual lightness, not sRGB
+relative luminance; witnesses on record in the round-2 STOP —
+highlight L .18 vs active L .60 reached 3.984:1, frame L .48 vs
+background L .16 reached 2.506:1 at adversarial hue/chroma). The
+solver verifies every WCAG pair on FINAL gamut-mapped sRGB outputs
+and chroma-compresses or synthesizes within the bands until the
+floors pass; a role that cannot pass falls to the neutral ramp. The
+property test asserts, over the fixture corpus plus randomized art:
+(a) every emitted role's L lies in its band, and (b) every emitted
+WCAG pair meets its floor.
 
 | role           | target L | band        |
 |----------------+----------+-------------|
@@ -132,7 +140,17 @@ Neutral doctrine (rev 0.3): art chroma below OKLch C 0.04 sends the
 affected role to the neutral ramp — the same L bands with chroma
 clamped to <= 0.02, hue inherited from the art's most chromatic
 cluster when that cluster's C >= 0.02, else hue 250 (slate). The
-ramp is compliant by construction and is the terminal fallback.
+ramp is the terminal fallback; its WCAG compliance is constructible
+(near-neutral Y is hue-independent) and still test-verified.
+
+Neutral peer exemption (rev 0.4): a peer pair whose members BOTH
+emit at C <= 0.04 is exempt from peer ΔE and hue separation — the
+pair is distinguished by lightness, provenance records =neutral=.
+A pair with exactly ONE neutral member: hue separation exempt (the
+chroma gate), peer ΔE floor stands. WCAG floors are never exempt.
+(Rev 0.3 exempted neutrals from hue only; the round-2 STOP showed
+the ramp cannot reach ΔE 20 at C <= 0.02 — witness ΔE 10.575 at
+the ruled targets — so demanding it was demanding invented chroma.)
 
 Solver tiers (rev 0.3): the four WCAG contrast floors are HARD at
 every tier — no pass may emit below them; synthesis (ladder search
@@ -249,6 +267,7 @@ binary (not yet installed).
 
 | rev | date       | change |
 |-----+------------+--------|
+| 0.4 | 2026-09-04 | Round-2 STOP adopted (Code Lead counterexamples reproduced by RL to the digit): §5 bands demoted to search bounds — WCAG floors verified on final gamut-mapped outputs, solver compresses/synthesizes until pass; neutral peer pairs (both C <= 0.04) exempt from ΔE + hue, single-neutral pairs from hue only; rev 0.3 constructive-satisfiability claim withdrawn with witnesses preserved. |
 | 0.3 | 2026-09-04 | Round-1 rulings for AI-IMP-002: default tone bands + neutral doctrine + solver tiers (§5, contrast floors hard at every tier); emission = span-preserving token rewrite with authoritative binding map, serde re-serialization forbidden (§6); color-core stdout diagnostic moved to stderr upstream (color-tool-kmeans 5baa20e); Code Lead sitting builds against a pinned sibling clone at .workspaces/code-lead/color-tool-kmeans. |
 | 0.2 | 2026-08-19 | Live rollout findings: macOS hot reload non-functional (IPC is the only channel); 0.11.0 debuginfo false-positive on tab components (minimal repro; upstream-fixed in Unreleased); theme-before-config IPC ordering. Four-view config applied to the owner's live setup. |
 | 0.1 | 2026-08-19 | Initial specification from the three-codebase survey (v1 archive, color-tool-kmeans, rmpc 0.11 source). Ruled: no fork; color doctrine (own lightness, harvest hue — owner-confirmed "values are truth"); color-core extraction over file copies; complete-document emission; v1 guardrail floors carried as defaults; hook failure policy; rmpcd deferred. |
