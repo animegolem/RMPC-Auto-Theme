@@ -3,7 +3,7 @@
 
 | Status | Revision | Date       |
 |--------+----------+------------|
-| Draft  | 0.2      | 2026-08-19 |
+| Draft  | 0.3      | 2026-09-04 |
 
 This document is the constitution of the project: every design
 decision derives from it, and amendments land here before they land
@@ -108,6 +108,40 @@ proxy. The pairwise accent×active solver (strict → relaxed →
 best-effort passes) is retained from v1, as is per-role provenance
 (=origin=, =confidence=, measured contrasts) surfaced by =--debug=.
 
+Default tone bands (rev 0.3; config-overridable at AI-IMP-003, OKLab
+L, target with permitted band). Chosen so every §5 contrast floor is
+satisfiable by construction; the implementation must carry a
+property test proving each floor holds across its counterpart
+role's full band before any art is seen:
+
+| role           | target L | band        |
+|----------------+----------+-------------|
+| background     |     0.13 | 0.10 - 0.16 |
+| text           |     0.88 | 0.82 - 0.93 |
+| accent         |     0.74 | 0.68 - 0.80 |
+| active         |     0.65 | 0.60 - 0.70 |
+| highlight text |     0.14 | 0.10 - 0.18 |
+| frame          |     0.52 | 0.48 - 0.58 |
+| header accent  |     0.76 | 0.70 - 0.82 |
+| inactive       | = frame (alias) |      |
+
+Highlight text is a DARK band by design: active is a mid-tone
+background and 4.5:1 over it is only constructible from below.
+
+Neutral doctrine (rev 0.3): art chroma below OKLch C 0.04 sends the
+affected role to the neutral ramp — the same L bands with chroma
+clamped to <= 0.02, hue inherited from the art's most chromatic
+cluster when that cluster's C >= 0.02, else hue 250 (slate). The
+ramp is compliant by construction and is the terminal fallback.
+
+Solver tiers (rev 0.3): the four WCAG contrast floors are HARD at
+every tier — no pass may emit below them; synthesis (ladder search
+as last resort, per §2) must produce a compliant color or the role
+falls to the neutral ramp. Peer ΔE and hue separation may relax by
+tier with provenance recording the tier used: strict ΔE 25 / hue
+30°; relaxed ΔE 20 / hue 20° (supersedes v1's mixed 25°/20°
+CIELAB-era values; v2 measures hue in OKLch).
+
 * 6. Theme emission
 
 - The generator parses the user's base theme with the =ron= crate,
@@ -122,6 +156,41 @@ best-effort passes) is retained from v1, as is per-role provenance
 - The base theme defaults to rmpc's =example_theme.ron= equivalent
   (upstream-test-guaranteed equal to =UiConfigFile::default()=) when
   the user has none.
+- Patching mechanics (rev 0.3): serde round-tripping is FORBIDDEN as
+  the emission path — ron 0.12 re-serialization drops pragmas,
+  reorders content, expands defaults, and cannot preserve comments
+  (round-1 finding). =emit.rs= is a span-preserving token rewriter:
+  lex the RON document, track the named-field path, and rewrite ONLY
+  the string literals at mapped paths; every other byte of the input
+  (layout, comments, whitespace, ordering, pragmas) passes through
+  untouched. A typed parse of the OUTPUT validates well-formedness;
+  golden tests are byte-exact.
+- A mapped path whose value is =None= or absent is left untouched and
+  reported in =--debug= provenance (user intent respected); the
+  shipped default base theme carries every mapped path.
+- Binding map (rev 0.3; "~9 tokens" always meant the eight roles —
+  this table is authoritative, occurrence count is incidental):
+
+| path                                   | role                        |
+|----------------------------------------+-----------------------------|
+| background_color                       | background                  |
+| header_background_color                | background                  |
+| modal_background_color                 | background                  |
+| text_color                             | text                        |
+| borders_style.fg                       | frame                       |
+| highlight_border_style.fg              | frame                       |
+| current_item_style.fg / .bg            | highlight text / active     |
+| highlighted_item_style.fg / .bg        | highlight text / active     |
+| tab_bar.active_style.fg / .bg          | highlight text / active     |
+| tab_bar.inactive_style.fg / .bg        | inactive / background       |
+| preview_label_style.fg                 | header accent               |
+| preview_metadata_group_style.fg        | header accent               |
+| level_styles.info.fg                   | accent                      |
+| level_styles.*.bg                      | background                  |
+| progress_bar.track_style.fg / .bg      | frame / background          |
+| progress_bar.elapsed_style.fg / .bg    | active / background         |
+| progress_bar.thumb_style.fg / .bg      | frame / background          |
+| scrollbar.track/ends/thumb_style.fg/.bg| frame / background          |
 
 * 7. Trigger, application, and failure policy
 
@@ -180,5 +249,6 @@ binary (not yet installed).
 
 | rev | date       | change |
 |-----+------------+--------|
+| 0.3 | 2026-09-04 | Round-1 rulings for AI-IMP-002: default tone bands + neutral doctrine + solver tiers (§5, contrast floors hard at every tier); emission = span-preserving token rewrite with authoritative binding map, serde re-serialization forbidden (§6); color-core stdout diagnostic moved to stderr upstream (color-tool-kmeans 5baa20e); Code Lead sitting builds against a pinned sibling clone at .workspaces/code-lead/color-tool-kmeans. |
 | 0.2 | 2026-08-19 | Live rollout findings: macOS hot reload non-functional (IPC is the only channel); 0.11.0 debuginfo false-positive on tab components (minimal repro; upstream-fixed in Unreleased); theme-before-config IPC ordering. Four-view config applied to the owner's live setup. |
 | 0.1 | 2026-08-19 | Initial specification from the three-codebase survey (v1 archive, color-tool-kmeans, rmpc 0.11 source). Ruled: no fork; color doctrine (own lightness, harvest hue — owner-confirmed "values are truth"); color-core extraction over file copies; complete-document emission; v1 guardrail floors carried as defaults; hook failure policy; rmpcd deferred. |
