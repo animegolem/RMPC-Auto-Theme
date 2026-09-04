@@ -28,8 +28,11 @@ mkdir -p "$STATE_DIR"
 # ring never records a fingerprint, so real mail can't be skipped past it.
 WATCH_DIR="${WATCH_DIR:-}"
 if [[ -n "$WATCH_DIR" && -d "$WATCH_DIR" ]]; then
-  fp=$(find "$WATCH_DIR" -type f ! -name '*.tmp' -print0 2>/dev/null | sort -z | xargs -0 shasum -a 256 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
-  if [[ -n "$fp" && "$fp" == "$(cat "$STATE_DIR/last-fingerprint" 2>/dev/null)" ]]; then
+  snap() { find "$WATCH_DIR" -type f ! -name '*.tmp' -print0 2>/dev/null | sort -z | xargs -0 shasum -a 256 2>/dev/null | shasum -a 256 | cut -d' ' -f1; }
+  fp=$(snap); sleep 2; fp2=$(snap)
+  if [[ "$fp" != "$fp2" ]]; then
+    fp=""   # torn write in progress: ring, but store no fingerprint — next wake re-evaluates
+  elif [[ -n "$fp" && "$fp" == "$(cat "$STATE_DIR/last-fingerprint" 2>/dev/null)" ]]; then
     echo "$(date -u +%FT%TZ) spurious wake suppressed (fingerprint unchanged)" >> "$STATE_DIR/rings.log"; exit 0
   fi
 fi
