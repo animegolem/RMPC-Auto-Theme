@@ -3,7 +3,7 @@
 
 | Status | Revision | Date       |
 |--------+----------+------------|
-| Draft  | 0.4      | 2026-09-04 |
+| Draft  | 0.5      | 2026-09-04 |
 
 This document is the constitution of the project: every design
 decision derives from it, and amendments land here before they land
@@ -88,7 +88,10 @@ Color-tool); the obligation travels with the crate.
 
 Eight primary roles: background, text, accent, active, highlight
 text, frame, header accent, inactive. Derived roles are explicit
-aliases (inactive = frame; progress = accent; scrollbar = active).
+aliases (inactive = frame; progress: elapsed = active, track/thumb =
+frame; scrollbar = frame on background — rev 0.5, prose reconciled
+to the authoritative §6 binding map after the round-2 submission
+flagged the divergence; the §6 table always wins).
 The emitted template touches ≈9 tokens and nothing else.
 
 Guardrail floors (defaults; config-overridable, §7) — carried from
@@ -267,6 +270,7 @@ binary (not yet installed).
 
 | rev | date       | change |
 |-----+------------+--------|
+| 0.5 | 2026-09-04 | §5 alias prose reconciled to the §6 binding map (progress elapsed=active, track/thumb=frame; scrollbar=frame/background); flagged by Code Lead round-2 friction note. |
 | 0.4 | 2026-09-04 | Round-2 STOP adopted (Code Lead counterexamples reproduced by RL to the digit): §5 bands demoted to search bounds — WCAG floors verified on final gamut-mapped outputs, solver compresses/synthesizes until pass; neutral peer pairs (both C <= 0.04) exempt from ΔE + hue, single-neutral pairs from hue only; rev 0.3 constructive-satisfiability claim withdrawn with witnesses preserved. |
 | 0.3 | 2026-09-04 | Round-1 rulings for AI-IMP-002: default tone bands + neutral doctrine + solver tiers (§5, contrast floors hard at every tier); emission = span-preserving token rewrite with authoritative binding map, serde re-serialization forbidden (§6); color-core stdout diagnostic moved to stderr upstream (color-tool-kmeans 5baa20e); Code Lead sitting builds against a pinned sibling clone at .workspaces/code-lead/color-tool-kmeans. |
 | 0.2 | 2026-08-19 | Live rollout findings: macOS hot reload non-functional (IPC is the only channel); 0.11.0 debuginfo false-positive on tab components (minimal repro; upstream-fixed in Unreleased); theme-before-config IPC ordering. Four-view config applied to the owner's live setup. |
