@@ -6,12 +6,12 @@ tags:
   - rust
   - solver
   - emission
-kanban_status: planned
+kanban_status: completed
 depends_on: ["AI-IMP-001"]
 parent_epic: [[AI-EPIC-001-album-art-driven-live-theming]]
 confidence_score: 0.7
 date_created: 2026-08-19
-date_completed:
+date_completed: 2026-09-04
 ---
 
 # AI-IMP-002-theme-generator-core
@@ -54,17 +54,17 @@ tests: fixture art → byte-identical theme.
 Before marking an item complete on the checklist MUST **stop** and **think**. Have you validated all aspects are **implemented** and **tested**? 
 </CRITICAL_RULE>
 
-- [ ] color-core consumed by path dependency; no engine code copied.
-- [ ] Tone-band projection implemented; property test: every role's
+- [x] color-core consumed by path dependency; no engine code copied.
+- [x] Tone-band projection implemented; property test: every role's
       emitted L within its configured band.
-- [ ] Guardrail verification tests across fixture corpus (incl. a
+- [x] Guardrail verification tests across fixture corpus (incl. a
       monochrome and a near-black cover) — all floors met or
       documented synthetic fallback with provenance.
-- [ ] ron-crate base-theme patching emits a COMPLETE document; test:
+- [x] ron-crate base-theme patching emits a COMPLETE document; test:
       patching the default theme changes only color tokens (AST diff).
-- [ ] Determinism golden test (identical bytes → identical output).
-- [ ] --debug prints per-role origin/confidence/contrast matrix.
-- [ ] Gates green: fmt, clippy -D warnings, test.
+- [x] Determinism golden test (identical bytes → identical output).
+- [x] --debug prints per-role origin/confidence/contrast matrix.
+- [x] Gates green: fmt, clippy -D warnings, test.
 
 ### Acceptance Criteria
 
@@ -75,4 +75,15 @@ come from the ramp and every pair still meets its floor.
 
 ### Issues Encountered 
 
-(to be filled during implementation)
+Round 1 (pre-implementation) found six real defects in ticket/spec:
+broken path dep in the sitting clone (fixed: pinned sibling clone),
+color-core stdout corruption (fixed upstream, 5baa20e), serde RON
+round-trip destroying base themes (ruled: span-preserving rewriter,
+SPEC 0.3), missing binding map + solver numerics (ruled, SPEC 0.3),
+port-inventory line corrections. Round 2 STOP: rev 0.3's
+"satisfiable by construction" band claim was numerically false
+(witnesses 3.984/2.506/10.575, RL-reproduced); SPEC 0.4 demoted
+bands to search bounds with floors verified on final outputs and
+ruled the neutral peer exemption. Implementation then landed in one
+commit (35ce2f2), 21 tests, merged da7af6c. §5 alias prose divergence
+from the §6 map found at submission; reconciled in SPEC 0.5.
