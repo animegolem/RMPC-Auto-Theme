@@ -3,7 +3,7 @@
 
 | Status | Revision | Date       |
 |--------+----------+------------|
-| Draft  | 0.5      | 2026-09-04 |
+| Draft  | 0.6      | 2026-09-05 |
 
 This document is the constitution of the project: every design
 decision derives from it, and amendments land here before they land
@@ -233,13 +233,20 @@ CIELAB-era values; v2 measures hue in OKLch).
 - Short-circuit: SHA-256 of art bytes; unchanged hash exits before
   extraction (same-album tracks must not regenerate or flicker).
   Missing hash tool degrades to always-regenerate, never to failure.
+- Persistence (rev 0.6, owner-ruled): the hook writes the generated
+  document to a theme file that config.ron references AND applies it
+  via IPC in the same run (write first, then apply). An rmpc restart
+  therefore wakes already themed, and the art-hash short-circuit
+  stays valid across restarts. The base theme is never overwritten —
+  generated output lives in its own file.
 - Failure policy: the hook exits 0 on every failure path; theming
   must never disrupt playback. Errors log to a single capped file
   (unlike v1's unrotated 16 MB log).
 - Determinism: fixed seeds end-to-end; identical art bytes produce
   an identical theme document.
 - Optional OSC 11 terminal-background sync, gated on a writable
-  =/dev/tty= and on config.
+  =/dev/tty= and on config; ships DISABLED by default (rev 0.6,
+  owner-ruled).
 
 * 8. Boundary with the UI redesign
 
@@ -270,6 +277,7 @@ binary (not yet installed).
 
 | rev | date       | change |
 |-----+------------+--------|
+| 0.6 | 2026-09-05 | Wave 2 owner rulings: generated theme persists to its own file referenced by config.ron (write-then-apply; base never overwritten); OSC 11 ships disabled by default; installer may wire on_song_change only behind an explicit consent flag (ticket text confirmed); IMP-004 re-cut to verify-and-close after the v3 layout superseded the four-view rollout. |
 | 0.5 | 2026-09-04 | §5 alias prose reconciled to the §6 binding map (progress elapsed=active, track/thumb=frame; scrollbar=frame/background); flagged by Code Lead round-2 friction note. |
 | 0.4 | 2026-09-04 | Round-2 STOP adopted (Code Lead counterexamples reproduced by RL to the digit): §5 bands demoted to search bounds — WCAG floors verified on final gamut-mapped outputs, solver compresses/synthesizes until pass; neutral peer pairs (both C <= 0.04) exempt from ΔE + hue, single-neutral pairs from hue only; rev 0.3 constructive-satisfiability claim withdrawn with witnesses preserved. |
 | 0.3 | 2026-09-04 | Round-1 rulings for AI-IMP-002: default tone bands + neutral doctrine + solver tiers (§5, contrast floors hard at every tier); emission = span-preserving token rewrite with authoritative binding map, serde re-serialization forbidden (§6); color-core stdout diagnostic moved to stderr upstream (color-tool-kmeans 5baa20e); Code Lead sitting builds against a pinned sibling clone at .workspaces/code-lead/color-tool-kmeans. |

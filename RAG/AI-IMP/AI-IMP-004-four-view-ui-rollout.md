@@ -17,12 +17,17 @@ date_completed:
 
 ## Summary of Issue #1
 
-The four-view redesign existed only as a design handoff. Done
-state: the owner's live config.ron and themes/base.ron implement it
-(tabs Library/Now Playing/Lyrics/Search on keys 1-4, hidden tab
-bar, np_header component, two-column queue table), verified visually
-by the owner, and the applied pair is archived in
-~/git/personal-theming.
+RE-CUT 2026-09-05 (owner-ruled): the original four-view rollout was
+applied 2026-08-19 and then SUPERSEDED by the v3 Linux-recreation
+layout (2026-08-20, archived personal-theming 245bc4e) plus the
+two-column Lyrics tab (2026-08-27). This ticket is now
+verify-and-close: confirm the CURRENT live pair is the canonical
+base for the generator and the archive is in sync. Done state: every
+SPEC §6 binding-map path is present (or deliberately None) in the
+live base theme; the live config.ron/theme pair is re-archived in
+~/git/personal-theming with the lyrics amendment; §8 boundary holds
+(no layout fields owned by the generator); findings folded into
+SPEC if any.
 
 ### Out of Scope 
 
@@ -53,17 +58,16 @@ into SPEC rev 0.2 including the 0.11.0 debuginfo false positive.
 Before marking an item complete on the checklist MUST **stop** and **think**. Have you validated all aspects are **implemented** and **tested**? 
 </CRITICAL_RULE>
 
-- [x] base.ron and config.ron written per handoff, corrected for
-      0.11 semantics (tabs in config; Pane(Tabs) omission hides bar).
-- [x] cava installed; Cava panes in Now Playing and Lyrics views.
-- [x] Applied to the running instance over IPC without error.
-- [ ] Owner visual verification: all four views render as designed
-      (keys 1-4), queue table two-column, no tab bar, np_header
-      strip present in Now Playing and Lyrics.
-- [ ] Applied pair archived in personal-theming with a commit.
-- [ ] Handoff corrections written back to
-      personal-theming/RAG/design/handoff.md.
-
+- [ ] Binding-map coverage audit of the live theme (18+ mapped
+      paths): each present or documented-None; report table in
+      submission.
+- [ ] Live pair (config.ron + theme) re-archived in
+      ~/git/personal-theming, including the 2026-08-27 two-column
+      Lyrics tab; commit referenced in submission.
+- [ ] §8 boundary check: generator patches colors only; no layout
+      drift between archive and live.
+- [ ] Ticket text/SPEC discrepancies found during audit reported,
+      not silently fixed.
 ### Acceptance Criteria
 
 GIVEN the owner's terminal, WHEN keys 1-4 are pressed, THEN the
