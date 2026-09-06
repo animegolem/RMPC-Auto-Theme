@@ -6,12 +6,12 @@ tags:
   - shell
   - config
   - install
-kanban_status: planned
+kanban_status: completed
 depends_on: ["AI-IMP-002"]
 parent_epic: [[AI-EPIC-001-album-art-driven-live-theming]]
 confidence_score: 0.75
 date_created: 2026-08-19
-date_completed:
+date_completed: 2026-09-06
 ---
 
 # AI-IMP-003-hook-config-packaging
@@ -53,12 +53,12 @@ refuses unsafe HOME.
 Before marking an item complete on the checklist MUST **stop** and **think**. Have you validated all aspects are **implemented** and **tested**? 
 </CRITICAL_RULE>
 
-- [ ] Hook: hash short-circuit, exit codes honored, exit-0 on all
+- [x] Hook: hash short-circuit, exit codes honored, exit-0 on all
       failures, capped log; shell-level tests in a temp HOME.
-- [ ] Config file parsed with documented defaults; malformed file =
+- [x] Config file parsed with documented defaults; malformed file =
       loud failure at generator start, silent skip in hook.
-- [ ] OSC 11 optional and gated on writable /dev/tty.
-- [ ] install.sh idempotent; wires on_song_change into config.ron
+- [x] OSC 11 optional and gated on writable /dev/tty.
+- [x] install.sh idempotent; wires on_song_change into config.ron
       only with explicit consent flag.
 - [ ] Live smoke on owner's machine queued (owner-run): song change
       rethemes < 1 s; same-album no-op; kill generator mid-run leaves
@@ -73,4 +73,12 @@ rmpc keeps the current theme.
 
 ### Issues Encountered 
 
-(to be filled during implementation)
+Round 1 STOP produced five rulings (SPEC 0.7): §8 reconciled to v3,
+exit-2 = base reset, pure-binary seam with --print-config +
+--print-base-theme, toml dep, materialization deferred to RL/owner.
+Implementation landed in one commit (4a0a9c8, 35 tests incl. 9
+shell-integration in temp HOME), merged after independent gate
+reproduction. The final checklist item (owner live smoke: <1s
+retheme, same-album no-op, mid-run kill) is QUEUED in
+HUMAN-TESTING.md, not run — ticket closes on the code; the smoke
+gates the epic close, not this ticket.
