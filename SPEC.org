@@ -3,7 +3,7 @@
 
 | Status | Revision | Date       |
 |--------+----------+------------|
-| Draft  | 0.6      | 2026-09-05 |
+| Draft  | 0.7      | 2026-09-05 |
 
 This document is the constitution of the project: every design
 decision derives from it, and amendments land here before they land
@@ -229,7 +229,11 @@ CIELAB-era values; v2 measures hue in OKLch).
   itself is unaffected. v2 tooling MUST NOT use =debuginfo= as a
   config validator on 0.11.0.
 - Art acquisition: =rmpc albumart -o -=; exit codes 0/1/2/3 are
-  honored (2 = no art → fallback theme path; 3 = no song → exit).
+  honored (3 = no song → exit). Exit 2 (no art), rev 0.7 ruling:
+  the hook applies the UNMODIFIED base theme through the same
+  write-then-apply path and clears the art-hash state, so the next
+  track with art regenerates. No-art tracks read as the base look,
+  never as the previous album's leftovers.
 - Short-circuit: SHA-256 of art bytes; unchanged hash exits before
   extraction (same-album tracks must not regenerate or flicker).
   Missing hash tool degrades to always-regenerate, never to failure.
@@ -246,19 +250,36 @@ CIELAB-era values; v2 measures hue in OKLch).
   an identical theme document.
 - Optional OSC 11 terminal-background sync, gated on a writable
   =/dev/tty= and on config; ships DISABLED by default (rev 0.6,
-  owner-ruled).
+  owner-ruled). Rev 0.7 seam ruling: the generator binary stays
+  side-effect-free (§3 clause stands) — it gains a config-query
+  mode (=--print-config KEY= over the effective flags+file merge)
+  and the HOOK owns the actual =/dev/tty= OSC write. The =toml=
+  crate is an approved dependency; §5 bands and floors move from
+  constants to config-plumbed values with the SPEC numbers as
+  defaults.
+- Base-theme materialization (rev 0.7): the 16 mapped paths that
+  are None/absent in the owner's base theme are to be MATERIALIZED
+  with visually-equivalent literals (v3 doctrine: the auto-theme
+  tints all space; an unpatchable None defeats it). The RL applies
+  this to the live pair and archive; owner visual confirmation
+  rides the Wave 2 smoke.
 
 * 8. Boundary with the UI redesign
 
-The four-view layout (Library / Now Playing / Lyrics / Search on
-keybinds; hidden tab bar) is static user configuration owned by
-=~/git/personal-theming/RAG/design/=: =tabs:= and keybinds in
+The canonical layout (rev 0.7 — reconciled to what the owner
+actually ratified and runs) is the v3 Linux-recreation
+(2026-08-20, personal-theming 245bc4e) plus the two-column Lyrics
+tab (2026-08-27): tabs Now Playing / Library / Lyrics / Search on
+keys 1-4, VISIBLE tab bar (owner overruled the hidden bar after
+living with it), global np_header strip, pixel-square art band, no
+Cava. The four-view/hidden-bar design this section previously
+described is superseded; its record lives in
+=~/git/personal-theming/RAG/design/handoff.md=. Static user
+configuration remains owned there: =tabs:= and keybinds in
 config.ron, chrome =layout= in the base theme. This project never
-emits layout, tabs, headers, or formats. Corrections to that
-handoff, verified against 0.11: tabs belong in config.ron, and the
-tab bar hides by omitting =Pane(Tabs)= from the theme layout
-(=tab_bar.enabled= is deprecated). The Cava pane requires the =cava=
-binary (not yet installed).
+emits layout, tabs, headers, or formats. Verified against 0.11:
+tabs belong in config.ron; the tab bar hides by omitting
+=Pane(Tabs)= from the theme layout (=tab_bar.enabled= deprecated).
 
 * 9. Paths not taken and future work
 
@@ -277,6 +298,7 @@ binary (not yet installed).
 
 | rev | date       | change |
 |-----+------------+--------|
+| 0.7 | 2026-09-05 | Wave 2 round-1 rulings: §8 reconciled to v3 + two-column Lyrics as canonical (four-view superseded); exit-2 = apply unmodified base + clear hash state; generator stays side-effect-free with --print-config, hook owns OSC 11 write; toml dep approved, Cargo.toml/lock added to fence; 16 None mapped paths to be materialized in the base pair (RL-applied). |
 | 0.6 | 2026-09-05 | Wave 2 owner rulings: generated theme persists to its own file referenced by config.ron (write-then-apply; base never overwritten); OSC 11 ships disabled by default; installer may wire on_song_change only behind an explicit consent flag (ticket text confirmed); IMP-004 re-cut to verify-and-close after the v3 layout superseded the four-view rollout. |
 | 0.5 | 2026-09-04 | §5 alias prose reconciled to the §6 binding map (progress elapsed=active, track/thumb=frame; scrollbar=frame/background); flagged by Code Lead round-2 friction note. |
 | 0.4 | 2026-09-04 | Round-2 STOP adopted (Code Lead counterexamples reproduced by RL to the digit): §5 bands demoted to search bounds — WCAG floors verified on final gamut-mapped outputs, solver compresses/synthesizes until pass; neutral peer pairs (both C <= 0.04) exempt from ΔE + hue, single-neutral pairs from hue only; rev 0.3 constructive-satisfiability claim withdrawn with witnesses preserved. |

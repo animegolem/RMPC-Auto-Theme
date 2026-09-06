@@ -71,7 +71,9 @@ Before marking an item complete on the checklist MUST **stop** and **think**. Ha
 ### Acceptance Criteria
 
 GIVEN the owner's terminal, WHEN keys 1-4 are pressed, THEN the
-four designed views render with no tab bar and readable defaults.
+canonical v3 views (SPEC §8 rev 0.7: visible tab bar, np_header,
+two-column Lyrics) render with readable defaults, AND the archive
+pair in ~/git/personal-theming matches the live pair.
 
 ### Issues Encountered 
 
