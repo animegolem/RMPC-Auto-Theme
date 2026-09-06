@@ -2,6 +2,7 @@
 
 use color_core::analyze::{default_max_samples, AnalyzeRequest, ImageSource};
 
+pub mod config;
 pub mod emit;
 pub mod roles;
 pub mod solver;
@@ -22,11 +23,20 @@ pub struct Generation {
 
 /// Extract colors, assign roles, and patch a complete base theme.
 pub fn generate(art_bytes: &[u8], base_theme: &str) -> Result<Generation, String> {
+    generate_with_config(art_bytes, base_theme, &config::EffectiveConfig::default())
+}
+
+/// Generate a theme using the effective user configuration.
+pub fn generate_with_config(
+    art_bytes: &[u8],
+    base_theme: &str,
+    config: &config::EffectiveConfig,
+) -> Result<Generation, String> {
     let request = AnalyzeRequest {
         path: String::new(),
         k: 8,
         stride: 4,
-        quality: Some(2),
+        quality: Some(config.quality),
         ignore_top_n: 0,
         merge_threshold: 0.08,
         min_lum: 0,
@@ -38,9 +48,15 @@ pub fn generate(art_bytes: &[u8], base_theme: &str) -> Result<Generation, String
     };
     let analysis = color_core::analyze(&request, ImageSource::Bytes(art_bytes))
         .map_err(|error| error.to_string())?;
-    let palette = solver::assign_roles(&analysis.clusters)?;
+    let palette =
+        solver::assign_roles_with_config(&analysis.clusters, &config.bands, &config.floors)?;
     let patch = emit::patch_theme(base_theme, &palette)?;
-    let debug = debug_report(&palette, &patch.patched_paths, &patch.untouched_paths);
+    let debug = debug_report(
+        &palette,
+        &patch.patched_paths,
+        &patch.untouched_paths,
+        &config.floors,
+    );
 
     Ok(Generation {
         theme: patch.output,
@@ -51,7 +67,12 @@ pub fn generate(art_bytes: &[u8], base_theme: &str) -> Result<Generation, String
     })
 }
 
-fn debug_report(palette: &RolePalette, patched: &[String], untouched: &[String]) -> String {
+fn debug_report(
+    palette: &RolePalette,
+    patched: &[String],
+    untouched: &[String],
+    floors: &solver::GuardrailFloors,
+) -> String {
     let mut output = String::from("roles:\n");
     for role in Role::ALL {
         let color = palette.get(role);
@@ -72,11 +93,11 @@ fn debug_report(palette: &RolePalette, patched: &[String], untouched: &[String])
 
     output.push_str("contrast matrix:\n");
     for (left, right, floor) in [
-        (Role::Accent, Role::Background, 4.5),
-        (Role::Text, Role::Background, 4.5),
-        (Role::Active, Role::Background, 3.5),
-        (Role::HighlightText, Role::Active, 4.5),
-        (Role::Frame, Role::Background, 3.0),
+        (Role::Accent, Role::Background, floors.accent_background),
+        (Role::Text, Role::Background, floors.text_background),
+        (Role::Active, Role::Background, floors.active_background),
+        (Role::HighlightText, Role::Active, floors.highlight_active),
+        (Role::Frame, Role::Background, floors.frame_background),
     ] {
         let ratio = solver::wcag_contrast(palette.get(left).rgb, palette.get(right).rgb);
         output.push_str(&format!(

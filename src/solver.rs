@@ -4,15 +4,38 @@ use std::collections::HashSet;
 
 use color_core::ClusterOut;
 
-use crate::roles::{AssignedColor, Role, RolePalette, SolverTier, ToneBand};
+use crate::roles::{AssignedColor, Role, RolePalette, SolverTier, ToneBand, ToneBands};
 
 const NEUTRAL_THRESHOLD: f32 = 0.04;
 const NEUTRAL_RAMP_CHROMA: f32 = 0.02;
-const ACCENT_BACKGROUND_MIN: f32 = 4.5;
-const TEXT_BACKGROUND_MIN: f32 = 4.5;
-const ACTIVE_BACKGROUND_MIN: f32 = 3.5;
-const HIGHLIGHT_ACTIVE_MIN: f32 = 4.5;
-const FRAME_BACKGROUND_MIN: f32 = 3.0;
+const RELAXED_PEER_DELTA_E: f32 = 20.0;
+const RELAXED_HUE_SEPARATION: f32 = 20.0;
+
+/// Effective final-output guardrail thresholds.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GuardrailFloors {
+    pub accent_background: f32,
+    pub text_background: f32,
+    pub active_background: f32,
+    pub highlight_active: f32,
+    pub frame_background: f32,
+    pub peer_delta_e: f32,
+    pub hue_separation: f32,
+}
+
+impl Default for GuardrailFloors {
+    fn default() -> Self {
+        Self {
+            accent_background: 4.5,
+            text_background: 4.5,
+            active_background: 3.5,
+            highlight_active: 4.5,
+            frame_background: 3.0,
+            peer_delta_e: 25.0,
+            hue_separation: 30.0,
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GuardrailReport {
@@ -29,21 +52,31 @@ pub struct GuardrailReport {
 
 /// Assign extracted, dominance-ordered clusters to all eight semantic roles.
 pub fn assign_roles(clusters: &[ClusterOut]) -> Result<RolePalette, String> {
+    assign_roles_with_config(clusters, &ToneBands::default(), &GuardrailFloors::default())
+}
+
+/// Assign roles using caller-supplied search bands and hard floors.
+pub fn assign_roles_with_config(
+    clusters: &[ClusterOut],
+    bands: &ToneBands,
+    floors: &GuardrailFloors,
+) -> Result<RolePalette, String> {
     if clusters.is_empty() {
         return Err("cannot assign roles from an empty cluster set".to_owned());
     }
 
     let neutral_hue = inherited_neutral_hue(clusters);
-    let background = choose_single(Role::Background, clusters, neutral_hue, |_| true)?;
-    let text = choose_single(Role::Text, clusters, neutral_hue, |candidate| {
-        wcag_contrast(candidate.rgb, background.rgb) >= TEXT_BACKGROUND_MIN
+    let background = choose_single(Role::Background, clusters, neutral_hue, bands, |_| true)?;
+    let text = choose_single(Role::Text, clusters, neutral_hue, bands, |candidate| {
+        wcag_contrast(candidate.rgb, background.rgb) >= floors.text_background
     })?;
-    let frame = choose_single(Role::Frame, clusters, neutral_hue, |candidate| {
-        wcag_contrast(candidate.rgb, background.rgb) >= FRAME_BACKGROUND_MIN
+    let frame = choose_single(Role::Frame, clusters, neutral_hue, bands, |candidate| {
+        wcag_contrast(candidate.rgb, background.rgb) >= floors.frame_background
     })?;
-    let header = choose_single(Role::HeaderAccent, clusters, neutral_hue, |_| true)?;
+    let header = choose_single(Role::HeaderAccent, clusters, neutral_hue, bands, |_| true)?;
 
-    let (accent, active, highlight) = choose_accent_active(clusters, neutral_hue, &background)?;
+    let (accent, active, highlight) =
+        choose_accent_active(clusters, neutral_hue, &background, bands, floors)?;
 
     let inactive = AssignedColor {
         role: Role::Inactive,
@@ -53,7 +86,7 @@ pub fn assign_roles(clusters: &[ClusterOut]) -> Result<RolePalette, String> {
     let palette = RolePalette::new([
         background, text, accent, active, highlight, frame, header, inactive,
     ]);
-    validate_palette(&palette)?;
+    validate_palette_with_config(&palette, bands, floors)?;
     Ok(palette)
 }
 
@@ -61,22 +94,23 @@ fn choose_single<F>(
     role: Role,
     clusters: &[ClusterOut],
     neutral_hue: f32,
+    bands: &ToneBands,
     predicate: F,
 ) -> Result<AssignedColor, String>
 where
     F: Fn(&AssignedColor) -> bool,
 {
-    for candidate in harvested_candidates(role, clusters) {
+    for candidate in harvested_candidates(role, clusters, bands) {
         if predicate(&candidate) {
             return Ok(candidate);
         }
     }
-    for candidate in synthesized_candidates(role, clusters) {
+    for candidate in synthesized_candidates(role, clusters, bands) {
         if predicate(&candidate) {
             return Ok(candidate);
         }
     }
-    for candidate in neutral_candidates(role, neutral_hue) {
+    for candidate in neutral_candidates(role, neutral_hue, bands) {
         if predicate(&candidate) {
             return Ok(candidate);
         }
@@ -88,14 +122,24 @@ fn choose_accent_active(
     clusters: &[ClusterOut],
     neutral_hue: f32,
     background: &AssignedColor,
+    bands: &ToneBands,
+    floors: &GuardrailFloors,
 ) -> Result<(AssignedColor, AssignedColor, AssignedColor), String> {
-    let accents = harvested_candidates(Role::Accent, clusters);
-    let actives = harvested_candidates(Role::Active, clusters);
-    let highlights = harvested_candidates(Role::HighlightText, clusters);
+    let accents = harvested_candidates(Role::Accent, clusters, bands);
+    let actives = harvested_candidates(Role::Active, clusters, bands);
+    let highlights = harvested_candidates(Role::HighlightText, clusters, bands);
 
     for (tier, delta_floor, hue_floor) in [
-        (SolverTier::Strict, 25.0, 30.0),
-        (SolverTier::Relaxed, 20.0, 20.0),
+        (
+            SolverTier::Strict,
+            floors.peer_delta_e,
+            floors.hue_separation,
+        ),
+        (
+            SolverTier::Relaxed,
+            RELAXED_PEER_DELTA_E,
+            RELAXED_HUE_SEPARATION,
+        ),
     ] {
         if let Some(result) = find_accent_active(
             &accents,
@@ -106,6 +150,7 @@ fn choose_accent_active(
             delta_floor,
             hue_floor,
             false,
+            floors,
         ) {
             return Ok(result);
         }
@@ -113,42 +158,48 @@ fn choose_accent_active(
 
     // Exhaust every all-harvested pair at both ruled tiers before synthesis.
     let mut synthesized_accents = accents;
-    synthesized_accents.extend(synthesized_candidates(Role::Accent, clusters));
+    synthesized_accents.extend(synthesized_candidates(Role::Accent, clusters, bands));
     let mut synthesized_actives = actives;
-    synthesized_actives.extend(synthesized_candidates(Role::Active, clusters));
+    synthesized_actives.extend(synthesized_candidates(Role::Active, clusters, bands));
     let mut synthesized_highlights = highlights;
-    synthesized_highlights.extend(synthesized_candidates(Role::HighlightText, clusters));
+    synthesized_highlights.extend(synthesized_candidates(Role::HighlightText, clusters, bands));
     if let Some(result) = find_accent_active(
         &synthesized_accents,
         &synthesized_actives,
         &synthesized_highlights,
         background,
         SolverTier::Relaxed,
-        20.0,
-        20.0,
+        RELAXED_PEER_DELTA_E,
+        RELAXED_HUE_SEPARATION,
         true,
+        floors,
     ) {
         return Ok(result);
     }
 
     // The terminal ramp intentionally makes both peers neutral. Rev 0.4
     // exempts that pair from ΔE and hue while retaining every WCAG floor.
-    let accents = neutral_candidates(Role::Accent, neutral_hue);
-    let actives = neutral_candidates(Role::Active, neutral_hue);
-    let highlights = neutral_candidates(Role::HighlightText, neutral_hue);
+    let accents = neutral_candidates(Role::Accent, neutral_hue, bands);
+    let actives = neutral_candidates(Role::Active, neutral_hue, bands);
+    let highlights = neutral_candidates(Role::HighlightText, neutral_hue, bands);
     for active in actives {
-        if wcag_contrast(active.rgb, background.rgb) < ACTIVE_BACKGROUND_MIN {
+        if wcag_contrast(active.rgb, background.rgb) < floors.active_background {
             continue;
         }
         let Some(highlight) = highlights
             .iter()
-            .find(|candidate| wcag_contrast(candidate.rgb, active.rgb) >= HIGHLIGHT_ACTIVE_MIN)
+            .find(|candidate| wcag_contrast(candidate.rgb, active.rgb) >= floors.highlight_active)
         else {
             continue;
         };
         if let Some(accent) = accents.iter().find(|candidate| {
-            wcag_contrast(candidate.rgb, background.rgb) >= ACCENT_BACKGROUND_MIN
-                && peer_passes(candidate, &active, 20.0, 20.0)
+            wcag_contrast(candidate.rgb, background.rgb) >= floors.accent_background
+                && peer_passes(
+                    candidate,
+                    &active,
+                    RELAXED_PEER_DELTA_E,
+                    RELAXED_HUE_SEPARATION,
+                )
         }) {
             return Ok((accent.clone(), active, highlight.clone()));
         }
@@ -166,13 +217,14 @@ fn find_accent_active(
     delta_floor: f32,
     hue_floor: f32,
     require_synthesis: bool,
+    floors: &GuardrailFloors,
 ) -> Option<(AssignedColor, AssignedColor, AssignedColor)> {
     for active in actives {
-        if wcag_contrast(active.rgb, background.rgb) < ACTIVE_BACKGROUND_MIN {
+        if wcag_contrast(active.rgb, background.rgb) < floors.active_background {
             continue;
         }
         for highlight in highlights {
-            if wcag_contrast(highlight.rgb, active.rgb) < HIGHLIGHT_ACTIVE_MIN {
+            if wcag_contrast(highlight.rgb, active.rgb) < floors.highlight_active {
                 continue;
             }
             for accent in accents {
@@ -183,7 +235,7 @@ fn find_accent_active(
                 {
                     continue;
                 }
-                if wcag_contrast(accent.rgb, background.rgb) < ACCENT_BACKGROUND_MIN
+                if wcag_contrast(accent.rgb, background.rgb) < floors.accent_background
                     || !peer_passes(accent, active, delta_floor, hue_floor)
                 {
                     continue;
@@ -207,7 +259,11 @@ fn find_accent_active(
     None
 }
 
-fn harvested_candidates(role: Role, clusters: &[ClusterOut]) -> Vec<AssignedColor> {
+fn harvested_candidates(
+    role: Role,
+    clusters: &[ClusterOut],
+    bands: &ToneBands,
+) -> Vec<AssignedColor> {
     let mut candidates = Vec::new();
     let mut seen = HashSet::new();
     for (index, cluster) in clusters.iter().enumerate() {
@@ -230,13 +286,18 @@ fn harvested_candidates(role: Role, clusters: &[ClusterOut]) -> Vec<AssignedColo
             format!("cluster[{index}]:projected"),
             SolverTier::Strict,
             true,
+            bands,
         );
     }
 
     candidates
 }
 
-fn synthesized_candidates(role: Role, clusters: &[ClusterOut]) -> Vec<AssignedColor> {
+fn synthesized_candidates(
+    role: Role,
+    clusters: &[ClusterOut],
+    bands: &ToneBands,
+) -> Vec<AssignedColor> {
     let mut candidates = Vec::new();
     let mut seen = HashSet::new();
 
@@ -250,6 +311,7 @@ fn synthesized_candidates(role: Role, clusters: &[ClusterOut]) -> Vec<AssignedCo
                 &clusters[left_index],
                 right_index,
                 &clusters[right_index],
+                bands,
             ) {
                 if candidate.oklch[1] > NEUTRAL_THRESHOLD && seen.insert(candidate.rgb) {
                     candidates.push(candidate);
@@ -278,6 +340,7 @@ fn synthesized_candidates(role: Role, clusters: &[ClusterOut]) -> Vec<AssignedCo
                     format!("cluster[{index}]:synthesized:{offset:+.0}deg"),
                     SolverTier::Synthesized,
                     true,
+                    bands,
                 );
             }
         }
@@ -291,6 +354,7 @@ fn synthesize_color_between(
     left: &ClusterOut,
     right_index: usize,
     right: &ClusterOut,
+    bands: &ToneBands,
 ) -> Vec<AssignedColor> {
     let mut candidates = Vec::new();
     let mut seen = HashSet::new();
@@ -321,6 +385,7 @@ fn synthesize_color_between(
             ),
             SolverTier::Synthesized,
             true,
+            bands,
         );
     }
     candidates
@@ -337,8 +402,10 @@ fn add_projected_candidates(
     origin: String,
     tier: SolverTier,
     require_chromatic: bool,
+    bands: &ToneBands,
 ) {
-    for lightness in lightness_samples(role.tone_band()) {
+    let band = role.tone_band_in(bands);
+    for lightness in lightness_samples(band) {
         for factor in [1.0, 0.75, 0.5, 0.3] {
             if let Some(candidate) = projected_color(
                 role,
@@ -348,6 +415,7 @@ fn add_projected_candidates(
                 origin.clone(),
                 confidence,
                 tier,
+                band,
             ) {
                 if require_chromatic && candidate.oklch[1] <= NEUTRAL_THRESHOLD {
                     continue;
@@ -360,10 +428,11 @@ fn add_projected_candidates(
     }
 }
 
-fn neutral_candidates(role: Role, hue: f32) -> Vec<AssignedColor> {
+fn neutral_candidates(role: Role, hue: f32, bands: &ToneBands) -> Vec<AssignedColor> {
     let mut candidates = Vec::new();
     let mut seen = HashSet::new();
-    for lightness in lightness_samples(role.tone_band()) {
+    let band = role.tone_band_in(bands);
+    for lightness in lightness_samples(band) {
         for chroma in [NEUTRAL_RAMP_CHROMA, 0.01, 0.0] {
             if let Some(candidate) = projected_color(
                 role,
@@ -373,6 +442,7 @@ fn neutral_candidates(role: Role, hue: f32) -> Vec<AssignedColor> {
                 format!("neutral-ramp:h{hue:.1}"),
                 0.25,
                 SolverTier::Neutral,
+                band,
             ) {
                 if candidate.oklch[1] <= NEUTRAL_THRESHOLD && seen.insert(candidate.rgb) {
                     candidates.push(candidate);
@@ -383,6 +453,7 @@ fn neutral_candidates(role: Role, hue: f32) -> Vec<AssignedColor> {
     candidates
 }
 
+#[allow(clippy::too_many_arguments)]
 fn projected_color(
     role: Role,
     lightness: f32,
@@ -391,13 +462,14 @@ fn projected_color(
     origin: String,
     confidence: f32,
     tier: SolverTier,
+    band: ToneBand,
 ) -> Option<AssignedColor> {
     let requested = color_core::color::oklch_to_oklab([lightness, chroma.max(0.0), hue]);
     let rgb = color_core::color::oklab_to_srgb8_gamut_mapped(requested);
     // Measurements and stored coordinates describe the bytes we actually emit,
     // not the pre-gamut-map request.
     let oklab = color_core::color::rgb8_to_oklab(rgb);
-    if !role.tone_band().contains(oklab[0]) {
+    if !band.contains(oklab[0]) {
         return None;
     }
     let oklch = color_core::color::oklab_to_oklch(oklab);
@@ -448,13 +520,22 @@ fn peer_passes(
 
 /// Verify all normative floors against the final emitted sRGB bytes.
 pub fn validate_palette(palette: &RolePalette) -> Result<GuardrailReport, String> {
+    validate_palette_with_config(palette, &ToneBands::default(), &GuardrailFloors::default())
+}
+
+/// Verify a palette against the effective bands and floors.
+pub fn validate_palette_with_config(
+    palette: &RolePalette,
+    bands: &ToneBands,
+    floors: &GuardrailFloors,
+) -> Result<GuardrailReport, String> {
     for role in Role::ALL {
         let color = palette.get(role);
-        if !role.tone_band().contains(color.oklab[0]) {
+        let band = role.tone_band_in(bands);
+        if !band.contains(color.oklab[0]) {
             return Err(format!(
                 "{role:?} lightness {} lies outside {:?}",
-                color.oklab[0],
-                role.tone_band()
+                color.oklab[0], band
             ));
         }
     }
@@ -483,27 +564,27 @@ pub fn validate_palette(palette: &RolePalette) -> Result<GuardrailReport, String
         (
             "accent/background",
             report.accent_background,
-            ACCENT_BACKGROUND_MIN,
+            floors.accent_background,
         ),
         (
             "text/background",
             report.text_background,
-            TEXT_BACKGROUND_MIN,
+            floors.text_background,
         ),
         (
             "active/background",
             report.active_background,
-            ACTIVE_BACKGROUND_MIN,
+            floors.active_background,
         ),
         (
             "highlight/active",
             report.highlight_active,
-            HIGHLIGHT_ACTIVE_MIN,
+            floors.highlight_active,
         ),
         (
             "frame/background",
             report.frame_background,
-            FRAME_BACKGROUND_MIN,
+            floors.frame_background,
         ),
     ] {
         if actual < floor {
@@ -513,9 +594,9 @@ pub fn validate_palette(palette: &RolePalette) -> Result<GuardrailReport, String
 
     let (delta_floor, hue_floor) =
         if accent.tier == SolverTier::Strict && active.tier == SolverTier::Strict {
-            (25.0, 30.0)
+            (floors.peer_delta_e, floors.hue_separation)
         } else {
-            (20.0, 20.0)
+            (RELAXED_PEER_DELTA_E, RELAXED_HUE_SEPARATION)
         };
     if !peer_passes(accent, active, delta_floor, hue_floor) {
         return Err(format!(
@@ -674,15 +755,17 @@ mod tests {
         ])
         .unwrap();
         let report = validate_palette(&palette).unwrap();
-        assert!(report.highlight_active >= HIGHLIGHT_ACTIVE_MIN);
-        assert!(report.frame_background >= FRAME_BACKGROUND_MIN);
+        let floors = GuardrailFloors::default();
+        assert!(report.highlight_active >= floors.highlight_active);
+        assert!(report.frame_background >= floors.frame_background);
     }
 
     #[test]
     fn between_synthesis_interpolates_chroma_but_role_owns_lightness() {
         let left = cluster(0.02, 0.20, 20.0, 0.6);
         let right = cluster(0.96, 0.18, 110.0, 0.4);
-        let candidates = synthesize_color_between(Role::Frame, 0, &left, 1, &right);
+        let candidates =
+            synthesize_color_between(Role::Frame, 0, &left, 1, &right, &ToneBands::default());
         assert!(!candidates.is_empty());
         assert!(candidates.iter().all(|candidate| {
             candidate.tier == SolverTier::Synthesized

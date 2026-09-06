@@ -1,10 +1,11 @@
 use std::io::Write;
 use std::process::{Command, Output, Stdio};
 
+use rmpc_theme_gen::config::EffectiveConfig;
 use rmpc_theme_gen::emit::patch_theme;
 use rmpc_theme_gen::roles::{Role, SolverTier};
-use rmpc_theme_gen::solver::validate_palette;
-use rmpc_theme_gen::{generate, DEFAULT_THEME};
+use rmpc_theme_gen::solver::{validate_palette, validate_palette_with_config};
+use rmpc_theme_gen::{generate, generate_with_config, DEFAULT_THEME};
 
 const CHROMATIC: &str = include_str!("../fixtures/chromatic.png.b64");
 const MONOCHROME: &str = include_str!("../fixtures/monochrome.png.b64");
@@ -132,6 +133,23 @@ fn fixture_corpus_is_deterministic_and_meets_bands_and_guardrails() {
         assert!(report.highlight_active >= 4.5, "{name}: {report:?}");
         assert!(report.frame_background >= 3.0, "{name}: {report:?}");
     }
+}
+
+#[test]
+fn configured_bands_and_floors_reach_the_solver() {
+    let mut config = EffectiveConfig::default();
+    config.bands.background.target = 0.12;
+    config.bands.background.min = 0.11;
+    config.bands.background.max = 0.14;
+    config.floors.accent_background = 5.0;
+    config.validate().unwrap();
+    let generated =
+        generate_with_config(&decode_base64(CHROMATIC), DEFAULT_THEME, &config).unwrap();
+    let background = generated.palette.get(Role::Background);
+    assert!(config.bands.background.contains(background.oklab[0]));
+    let report =
+        validate_palette_with_config(&generated.palette, &config.bands, &config.floors).unwrap();
+    assert!(report.accent_background >= 5.0);
 }
 
 #[test]
@@ -268,4 +286,37 @@ fn cli_help_and_errors_keep_stdout_empty() {
     assert!(!invalid.status.success());
     assert!(invalid.stdout.is_empty());
     assert!(String::from_utf8_lossy(&invalid.stderr).contains("failed to decode image"));
+}
+
+#[test]
+fn cli_queries_the_effective_config_and_rejects_malformed_toml() {
+    let root = std::env::temp_dir().join(format!("rmpc-config-cli-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let config = root.join("config.toml");
+    std::fs::write(&config, "quality = 3\nosc11 = false\n").unwrap();
+
+    let query = Command::new(env!("CARGO_BIN_EXE_rmpc-theme-gen"))
+        .args(["--config", config.to_str().unwrap(), "--quality", "4"])
+        .args(["--print-config", "quality"])
+        .output()
+        .unwrap();
+    assert!(query.status.success());
+    assert_eq!(query.stdout, b"4\n");
+    assert!(query.stderr.is_empty());
+
+    std::fs::write(&config, "quality = \"loud\"\n").unwrap();
+    let malformed = Command::new(env!("CARGO_BIN_EXE_rmpc-theme-gen"))
+        .args([
+            "--config",
+            config.to_str().unwrap(),
+            "--print-config",
+            "quality",
+        ])
+        .output()
+        .unwrap();
+    assert!(!malformed.status.success());
+    assert!(malformed.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&malformed.stderr).contains("config"));
+    std::fs::remove_dir_all(root).unwrap();
 }
