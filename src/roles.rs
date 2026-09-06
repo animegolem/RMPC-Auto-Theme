@@ -37,6 +37,18 @@ impl Role {
         }
     }
 
+    pub const fn tone_band_in(self, bands: &ToneBands) -> ToneBand {
+        match self {
+            Self::Background => bands.background,
+            Self::Text => bands.text,
+            Self::Accent => bands.accent,
+            Self::Active => bands.active,
+            Self::HighlightText => bands.highlight_text,
+            Self::Frame | Self::Inactive => bands.frame,
+            Self::HeaderAccent => bands.header_accent,
+        }
+    }
+
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Background => "background",
@@ -113,6 +125,32 @@ pub const HEADER_ACCENT_TONE_BAND: ToneBand = ToneBand {
     min: 0.70,
     max: 0.82,
 };
+
+/// Effective per-role lightness search bounds.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ToneBands {
+    pub background: ToneBand,
+    pub text: ToneBand,
+    pub accent: ToneBand,
+    pub active: ToneBand,
+    pub highlight_text: ToneBand,
+    pub frame: ToneBand,
+    pub header_accent: ToneBand,
+}
+
+impl Default for ToneBands {
+    fn default() -> Self {
+        Self {
+            background: BACKGROUND_TONE_BAND,
+            text: TEXT_TONE_BAND,
+            accent: ACCENT_TONE_BAND,
+            active: ACTIVE_TONE_BAND,
+            highlight_text: HIGHLIGHT_TEXT_TONE_BAND,
+            frame: FRAME_TONE_BAND,
+            header_accent: HEADER_ACCENT_TONE_BAND,
+        }
+    }
+}
 
 /// The constraint pass that produced an assigned color.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

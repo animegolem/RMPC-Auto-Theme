@@ -1,80 +1,138 @@
 # rmpc-auto-theme
 
-rmpc-auto-theme generates a color theme for the
-[rmpc](https://github.com/mierak/rmpc) music player from the album
-art of the song that's playing, and applies it to the running player
-without a restart. Every generated theme meets WCAG contrast minimums,
-so the interface stays readable no matter what the album art looks
-like.
+rmpc-auto-theme derives a readable [rmpc](https://github.com/mierak/rmpc)
+color theme from the current album art. It keeps your existing layout and
+formatting, writes the generated theme to its own file, and applies it to a
+running rmpc process over IPC.
 
-**Status: pre-implementation.** The design is complete
-([SPEC.org](SPEC.org)); implementation hasn't started. Version 1,
-which required a patched rmpc fork, is archived under `.archive/` and
-retained in git history.
-
-## How it works
-
-When rmpc changes songs, it runs a small hook script. The hook:
-
-1. Reads the current album art with `rmpc albumart -o -`.
-2. Compares the art's SHA-256 hash to the previous song's hash, and
-   exits early if they match. Tracks from the same album don't
-   regenerate the theme or cause flicker.
-3. Pipes the art to `rmpc-theme-gen`, which extracts a palette,
-   assigns colors to theme roles, and patches them into your base
-   theme.
-4. Applies the result with `rmpc remote set theme -`, which swaps
-   the theme in the running player over IPC.
-
-If any step fails, the hook exits cleanly and playback continues
-with the current theme. Theming never interrupts music.
-
-## Design principles
-
-**Values are truth; colors are mapped onto values.** Each theme role
-(background, text, accent, and so on) owns a fixed lightness band,
-chosen so that the required contrast ratios are achievable before
-any album is considered. Album art contributes only hue and chroma,
-which the generator projects into each role's band. Contrast checks
-verify the result instead of rescuing it.
-
-Other guarantees:
-
-- **Deterministic.** The same album art always produces the same
-  theme.
-- **Yours stays yours.** The generator patches color tokens into
-  your own base theme and never touches your layout, tabs, or
-  formats.
-- **Auditable.** The `--debug` flag reports where every color came
-  from and the contrast it achieves.
+The generator, hook, configuration, and installer are implemented. Automated
+tests cover generation and failure behavior; the owner-run macOS playback smoke
+test is still pending.
 
 ## Requirements
 
-- rmpc 0.11 or later. The project relies on `rmpc remote set theme`
-  and the `on_song_change` hook; no fork or patch is required.
-- MPD with album art available through `readpicture` or `albumart`.
-- Optional: the `cava` binary, if your layout uses the Cava pane.
+- macOS or Linux with a POSIX shell
+- Rust and Cargo to build the generator
+- rmpc 0.11 or later
+- MPD album art available through `readpicture` or `albumart`
 
-## Color engine
+The build also expects the `color-tool-kmeans` repository beside this repository
+because `color-core` is currently a path dependency.
 
-Color extraction comes from
-[color-tool-kmeans](https://github.com/animegolem/color-tool-kmeans):
-OKLab k-means clustering with hue-preserving gamut mapping,
-consumed as a library rather than copied. The color conversion code
-credits Laurent Jégou's Color-tool (CC BY 3.0); see
-[ATTRIBUTIONS](.archive/ATTRIBUTIONS.md) pending the crate split.
+## Install rmpc-auto-theme
 
-## Project documents
+Run the installer without consent to change your live rmpc configuration:
 
-- [SPEC.org](SPEC.org) — the normative specification. Design
-  decisions land there first.
-- `RAG/` — work tracking: epics, implementation tickets, session
-  logs, and a generated kanban (`RAG/INDEX.md`).
-- `~/git/personal-theming/RAG/design/` — the four-view UI redesign
-  this theming serves (local; static configuration, out of scope
-  for the generator).
+```sh
+./install.sh
+```
 
-## License
+This command builds and installs:
 
-MIT for project code. Portions of the color engine carry CC BY 3.0
-attribution requirements as noted above.
+- `~/.local/bin/rmpc-theme-gen`
+- `~/.local/libexec/rmpc-auto-theme/on_song_change.sh`
+- `~/.config/rmpc-auto-theme/config.toml`
+- `~/.config/rmpc/themes/auto-theme.ron`
+
+It then prints the `theme` and `on_song_change` fields to add to
+`~/.config/rmpc/config.ron`.
+
+To let the installer wire those fields, run:
+
+```sh
+./install.sh --wire-hook
+```
+
+The consented form creates a timestamped backup of `config.ron`. It only edits a
+configuration with exactly one ordinary `theme` field and exactly one
+`on_song_change: None` field. It refuses an existing custom hook instead of
+overwriting it. Repeating either install form is safe.
+
+If your current named theme exists under `~/.config/rmpc/themes`, the consented
+installer snapshots it as the immutable base before switching rmpc to
+`auto-theme`. Otherwise, set `base_theme` explicitly before you wire the hook.
+
+The installer respects `XDG_CONFIG_HOME` and `RMPC_AUTO_THEME_PREFIX`.
+
+## Configure theme generation
+
+Edit `~/.config/rmpc-auto-theme/config.toml`. The installed file lists every
+tunable value and its default. The most common settings are:
+
+```toml
+base_theme = "/Users/me/.config/rmpc/themes/my-theme.ron"
+quality = 2
+osc11 = false
+```
+
+Use an absolute path or a `~/` path for `base_theme`. Quality accepts values from
+0 through 4. OSC 11 terminal-background synchronization is disabled by default
+and only writes when `/dev/tty` is writable.
+
+You can also customize the lightness search band for each role and the final
+contrast, color-distance, and hue-separation floors. For example:
+
+```toml
+[bands.accent]
+target = 0.74
+min = 0.68
+max = 0.80
+
+[floors]
+accent_background = 4.5
+peer_delta_e = 25.0
+hue_separation = 30.0
+```
+
+Malformed files and unknown keys make direct generator invocations fail with an
+error. The song-change hook records the error and exits successfully so theming
+cannot interrupt playback.
+
+## Generate a theme directly
+
+Pass encoded artwork on standard input. The complete theme is written to
+standard output:
+
+```sh
+rmpc-theme-gen --base-theme "$HOME/.config/rmpc/themes/base.ron" \
+  < cover.jpg > preview.ron
+```
+
+Add `--debug` to print role provenance and measured guardrails to standard
+error. Command-line flags override the TOML file. Use `--set` for any documented
+scalar:
+
+```sh
+rmpc-theme-gen --set quality=4 --set bands.accent.target=0.76 < cover.jpg
+```
+
+Query one effective value without reading artwork:
+
+```sh
+rmpc-theme-gen --print-config osc11
+```
+
+## Runtime behavior
+
+On each song change, the hook:
+
+1. Acquires album art with `rmpc albumart` and honors its distinct no-art and
+   no-song exit codes.
+2. Skips generation when the SHA-256 matches the previously applied artwork.
+3. Generates into a temporary file and atomically renames it to
+   `auto-theme.ron`.
+4. Applies those same bytes with `rmpc remote --pid "$PID" set theme -`.
+5. Commits the art hash only after a successful IPC apply.
+
+A no-art track restores the unmodified base theme and clears the saved hash. A
+newer overlapping song-change event supersedes an older one. Failures leave the
+running theme alone, are written to the size-capped
+`~/.config/rmpc-auto-theme/hook.log`, and always return exit status 0.
+
+## Design and license
+
+[SPEC.org](SPEC.org) is the normative design. The color engine comes from
+[color-tool-kmeans](https://github.com/animegolem/color-tool-kmeans) and uses
+OKLab clustering with hue-preserving gamut mapping. Project code is MIT;
+attribution details for the color conversion code are retained in project
+history.

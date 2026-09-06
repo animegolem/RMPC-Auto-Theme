@@ -1,0 +1,47 @@
+# rmpc-auto-theme configuration. Omitted keys retain these defaults.
+quality = 2
+osc11 = false
+
+[bands.background]
+target = 0.13
+min = 0.10
+max = 0.16
+
+[bands.text]
+target = 0.88
+min = 0.82
+max = 0.93
+
+[bands.accent]
+target = 0.74
+min = 0.68
+max = 0.80
+
+[bands.active]
+target = 0.65
+min = 0.60
+max = 0.70
+
+[bands.highlight_text]
+target = 0.14
+min = 0.10
+max = 0.18
+
+[bands.frame]
+target = 0.52
+min = 0.48
+max = 0.58
+
+[bands.header_accent]
+target = 0.76
+min = 0.70
+max = 0.82
+
+[floors]
+accent_background = 4.5
+text_background = 4.5
+active_background = 3.5
+highlight_active = 4.5
+frame_background = 3.0
+peer_delta_e = 25.0
+hue_separation = 30.0
