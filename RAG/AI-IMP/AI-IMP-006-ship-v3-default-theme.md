@@ -44,6 +44,18 @@ patching (array-nested style locations) and the per-surface role
 table from DQ-4; the shipped default must be 100%-mapped chrome —
 no literal color a full retheme leaves behind.
 
+### Addendum 2 (2026-09-08): palette publisher scope + acceptance
+
+The notan-palette/1 publisher joins this ticket (contract at
+contract/notan-palette-v1.md; DQ-7 + addendum binding). Acceptance
+additions from the grisaille consultation: (a) analysis-cache hits
+and publication identity tested SEPARATELY — same-art track change
+MUST publish a fresh envelope; (b) --publish-current one-shot;
+(c) admission-token ordering incl. failure attempts; (d) a genuine
+captured artifact from fixtures/chromatic.png.b64 (full hash,
+revision, command, output) committed as the conformance golden;
+(e) failed-status publishes with never-invented identity.
+
 ### Out of Scope
 
 Layout changes beyond genericizing (strip owner-specific paths,
