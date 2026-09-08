@@ -49,3 +49,41 @@ round 1 proposes the component-path mechanism (the emitter's walker
 must handle array-nested styles) and a role assignment per surface
 (sketch: NORMAL bg=active fg=highlight-text, INSERT bg=accent,
 volume %/slider=accent, [zxcv]=frame, [Playing]=header-accent).
+
+## DQ-5 — Ghostty live retheme via OSC (ballast reconnaissance, 2026-09-08)
+
+Systems-lane findings (ballast, by socket letter, at owner request)
+for §9's deferred multi-terminal recoloring; banked verbatim-in-
+substance so nobody rediscovers it:
+
+- The seam is `RolePalette` (roles.rs:5): a Ghostty target is a
+  SECOND, simpler emitter consuming the palette — NOT a variant of
+  patch_theme (RON-specific by construction).
+- OSC 11 already ships (hook-owned, gated, off by default). Full
+  retheme = OSC 10 (fg), 12 (cursor), 4;N (ANSI 0-15) — same
+  delivery, same gate, more sequences. No config rewrite, no
+  reload; Ghostty applies OSC live.
+- Ghostty facts: `macos-titlebar-style = transparent` (owner's
+  default) follows OSC 11 in real time for the top surface;
+  `= tabs` makes the whole titlebar+tabbar match terminal bg — the
+  owner's chrome question answered YES. Themes dir is
+  ~/.config/ghostty/themes/ (not App Support). Ballast left a
+  static snapshot theme `ember` there (unwired) and fixed an
+  unrelated config parse error (backup config.bak-20260908).
+- THE design problem (ruling needed before any code): role→ANSI.
+  Eight roles vs sixteen slots WITH semantics (1=error, 2=success,
+  4=info); flooding the album ramp makes git diff / test output
+  illegible. Ballast's hand compromise (prior art, attributed):
+  warm-SHIFT semantic slots toward the palette (scarlet red, olive
+  green, album's own blue for 4) rather than flood. Our WCAG
+  machinery should do this properly — bands per ANSI slot class?
+- Hazards to rule: broadcast scope (writing OSC into ttys running
+  other TUIs can corrupt them); OSC is NOT self-reverting — a
+  terminal keeps the last album's palette after rmpc exits unless
+  something restores (needs a restore-on-exit story, e.g. hook on
+  MPD stop / rmpc exit emitting the ember/base palette).
+
+Status: banked, not cut. Candidate post-epic alongside DQ-2; the
+role→ANSI ruling is a design sitting with the owner first. Offered
+by ballast: the hand-built 16-color palette as a starting fixture,
+and live OSC testing from the systems side — accept both when cut.
