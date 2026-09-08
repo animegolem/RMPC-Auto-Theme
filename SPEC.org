@@ -3,7 +3,7 @@
 
 | Status | Revision | Date       |
 |--------+----------+------------|
-| Draft  | 0.8      | 2026-09-07 |
+| Draft  | 0.9      | 2026-09-08 |
 
 This document is the constitution of the project: every design
 decision derives from it, and amendments land here before they land
@@ -17,6 +17,15 @@ rmpc-auto-theme generates a complete rmpc theme from the currently
 playing album's artwork and applies it to running rmpc instances
 without restart, while guaranteeing WCAG-verified readability for
 every generated color role.
+
+Identity (rev 0.9, owner-ratified): the system is an EVENT-BASED
+RETHEME ENGINE, not a colorizer. Because the theme document rmpc
+accepts over IPC describes the entire UI — layout included — and
+the hook fires per player event, any per-event reconfiguration of
+the interface is in scope of this architecture without structural
+change. Colors are the first application; per-track layout
+variation (e.g. DQ-2, lyrics-conditional panes) is the same
+mechanism pointed at a different part of the document.
 
 In scope: color extraction, role assignment, theme emission, the
 song-change trigger path, and application to rmpc ≥ 0.11. Out of
@@ -312,6 +321,7 @@ tabs belong in config.ron; the tab bar hides by omitting
 
 | rev | date       | change |
 |-----+------------+--------|
+| 0.9 | 2026-09-08 | §1 identity statement: event-based retheme engine (whole-document-over-IPC per player event; layout reconfiguration in scope by construction). DQ-2 banked (reactive lyrics layout). No behavioral change. |
 | 0.8 | 2026-09-07 | DQ-1 rulings: derived selection role (band 0.72-0.82 target 0.75, L = active+0.10 clamped, hard ΔL >= 0.08 and highlight/selection >= 4.5 on final bytes, no neutral exemption) — current_item_style.bg moves to selection in §6; archive equality for IMP-004 defined as the APPLIED pair including runtime wiring (personal-theming cde7862). Round-1 witnesses RL-reproduced to six decimals. |
 | 0.7 | 2026-09-05 | Wave 2 round-1 rulings: §8 reconciled to v3 + two-column Lyrics as canonical (four-view superseded); exit-2 = apply unmodified base + clear hash state; generator stays side-effect-free with --print-config, hook owns OSC 11 write; toml dep approved, Cargo.toml/lock added to fence; 16 None mapped paths to be materialized in the base pair (RL-applied). |
 | 0.6 | 2026-09-05 | Wave 2 owner rulings: generated theme persists to its own file referenced by config.ron (write-then-apply; base never overwritten); OSC 11 ships disabled by default; installer may wire on_song_change only behind an explicit consent flag (ticket text confirmed); IMP-004 re-cut to verify-and-close after the v3 layout superseded the four-view rollout. |
