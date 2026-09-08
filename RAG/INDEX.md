@@ -7,10 +7,10 @@
 | Status | EPICs | IMPs |
 |--------|-------|------|
 | In Progress | 1 | 0 |
-| Planned | 0 | 3 |
+| Planned | 0 | 2 |
 | Deferred | 0 | 0 |
 | Cancelled | 0 | 0 |
-| Completed | 0 | 3 |
+| Completed | 0 | 4 |
 | **Total** | **1** | **6** |
 
 ## In Progress
@@ -22,7 +22,7 @@
 - [[AI-IMP-001-color-core-extraction|IMP-001]] Color core extraction — completed
 - [[AI-IMP-002-theme-generator-core|IMP-002]] Theme generator core — completed
 - [[AI-IMP-003-hook-config-packaging|IMP-003]] Hook config packaging — completed
-- [[AI-IMP-004-four-view-ui-rollout|IMP-004]] Four view ui rollout — planned
+- [[AI-IMP-004-four-view-ui-rollout|IMP-004]] Four view ui rollout — completed
 - [[AI-IMP-005-selection-vs-playing-differentiation|IMP-005]] Selection vs playing differentiation — planned
 - [[AI-IMP-006-ship-v3-default-theme|IMP-006]] Ship v3 default theme — planned
 

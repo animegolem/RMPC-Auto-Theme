@@ -5,12 +5,12 @@ tags:
   - Implementation
   - config
   - rollout
-kanban_status: planned
+kanban_status: completed
 depends_on: []
 parent_epic: [[AI-EPIC-001-album-art-driven-live-theming]]
 confidence_score: 0.9
 date_created: 2026-08-19
-date_completed:
+date_completed: 2026-09-08
 ---
 
 # AI-IMP-004-four-view-ui-rollout
@@ -58,15 +58,15 @@ into SPEC rev 0.2 including the 0.11.0 debuginfo false positive.
 Before marking an item complete on the checklist MUST **stop** and **think**. Have you validated all aspects are **implemented** and **tested**? 
 </CRITICAL_RULE>
 
-- [ ] Binding-map coverage audit of the live theme (18+ mapped
+- [x] Binding-map coverage audit of the live theme (18+ mapped
       paths): each present or documented-None; report table in
       submission.
-- [ ] Live pair (config.ron + theme) re-archived in
+- [x] Live pair (config.ron + theme) re-archived in
       ~/git/personal-theming, including the 2026-08-27 two-column
       Lyrics tab; commit referenced in submission.
-- [ ] §8 boundary check: generator patches colors only; no layout
+- [x] §8 boundary check: generator patches colors only; no layout
       drift between archive and live.
-- [ ] Ticket text/SPEC discrepancies found during audit reported,
+- [x] Ticket text/SPEC discrepancies found during audit reported,
       not silently fixed.
 ### Acceptance Criteria
 
@@ -75,7 +75,16 @@ canonical v3 views (SPEC §8 rev 0.7: visible tab bar, np_header,
 two-column Lyrics) render with readable defaults, AND the archive
 pair in ~/git/personal-theming matches the live pair.
 
-### Issues Encountered 
+### Issues Encountered
+
+Re-cut to verify-and-close after v3 superseded the four-view
+design. Audit ran twice: round 1 found the §8/acceptance staleness
+(SPEC 0.7 reconciled) and the archive runtime-wiring seam (ruled:
+archive stores the APPLIED pair, cde7862); a mid-wave STOP
+correctly caught the RL's materialization verdict reading as done
+when deferred. Closed on live/archive hash equality (base c1ecf5d6…,
+config 99b4ebeb…) + 34/0 binding coverage + Wave-2 smoke, closure
+claimed by Code Lead r2 and independently verified by RL. 
 
 - First render review (owner, 2026-08-19): queue block flush against
   the window edge, art size/placement drifting with resizes, and the
