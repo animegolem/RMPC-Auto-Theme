@@ -48,7 +48,9 @@ binding map. Rolled into AI-IMP-006 with the separator label:
 round 1 proposes the component-path mechanism (the emitter's walker
 must handle array-nested styles) and a role assignment per surface
 (sketch: NORMAL bg=active fg=highlight-text, INSERT bg=accent,
-volume %/slider=accent, [zxcv]=frame, [Playing]=header-accent).
+volume %/slider=accent, [zxcv]=frame, [Playing]=header-accent,
+cava bar_color=frame — owner ruled a dimmer tone so the bars don't
+compete with the art; wired live 2026-09-08, fifo-fed).
 
 ## DQ-5 — Ghostty live retheme via OSC (ballast reconnaissance, 2026-09-08)
 
