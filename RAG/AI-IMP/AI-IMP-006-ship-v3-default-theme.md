@@ -38,6 +38,14 @@ the separator's styled label into a theme-owned surface (component
 or a new mapped path) so the accent role reaches it; the offset
 rule itself stays frame-colored. This rides this ticket, not 005.
 
+WIDENED (DQ-4, same day): the label is one instance of a class —
+volume slider/percentage, [zxcv] hint, and the NORMAL/INSERT badge
+are all literal-styled component surfaces inside the theme document
+that the map never reaches. Round 1 proposes component-path
+patching (array-nested style locations) and the per-surface role
+table from DQ-4; the shipped default must be 100%-mapped chrome —
+no literal color a full retheme leaves behind.
+
 ### Out of Scope
 
 Layout changes beyond genericizing (strip owner-specific paths,

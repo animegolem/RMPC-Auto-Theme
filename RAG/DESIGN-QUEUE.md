@@ -37,3 +37,15 @@ shipped default becomes a genericized v3 pair: the theme (np_header
 amendment, --print-base-theme content change, fixtures/default
 regeneration (byte-exact provenance moves from upstream to this
 repo), installer sample. RULED into AI-IMP-006.
+
+## DQ-4 — chrome completeness: unmapped themed surfaces (owner, 2026-09-08)
+
+Owner spotted live: volume slider + "56%", [zxcv] hints, NORMAL/
+INSERT badge never take album colors. All are literals INSIDE the
+theme document (components.np_header, components.input_mode) —
+patchable by the existing engine, just outside the v1-inherited
+binding map. Rolled into AI-IMP-006 with the separator label:
+round 1 proposes the component-path mechanism (the emitter's walker
+must handle array-nested styles) and a role assignment per surface
+(sketch: NORMAL bg=active fg=highlight-text, INSERT bg=accent,
+volume %/slider=accent, [zxcv]=frame, [Playing]=header-accent).
