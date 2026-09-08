@@ -100,3 +100,33 @@ only rmpc-shaped part. Consumers now real or in flight: rmpc
 astra, mpd-ui-prototype .inbox/toastra r1). If the contract becomes
 the product, a rename + repo reshape (engine crate + consumers)
 follows. OPEN — no ruling; revisit at epic close.
+
+## DQ-7 — palette artifact contract v1 (astra consultation, 2026-09-08)
+
+Consumer requirements from the mpd-ui-prototype consultation
+(.inbox thread theme-engine-consumption r1-r3), banked for the
+future producer ticket (rides behind IMP-006):
+
+- Atomic-replace versioned JSON, parent-dir watch; producer
+  name/revision/spec-rev; generation id + status (ok | no-art |
+  failed with keep-last-usable semantics); track identity +
+  art hash for stale rejection and per-hash caching.
+- Guarantee scoped to NAMED verified pairs (floor + measured
+  final-sRGB contrast); nothing claimed for arbitrary
+  combinations. Base vs derived roles explicit (inactive = eternal
+  alias; selection present-with-null until producer >= IMP-005).
+- Ungated clusters block (share, hex, OKLCH; share-desc order,
+  ids artifact-stable only). No auto chroma boost in canonical
+  data; host adjustments live in adapters.
+- Color spaces labeled (display sRGB hex; OKLCH with ranges).
+  Joint acceptance drill: known ramp through both complete host
+  paths before any fidelity claim.
+- Gradient optional; interpolation space named; own scoped pairs.
+- Offer extended: consumer names (overlay, alpha, backdrop)
+  triples → engine verifies flattened pairs per album.
+- Composition is the consumer's (app-side hook); engine never
+  grows a layout language. FIFO pattern: one MPD fifo output per
+  PCM consumer (MPD duplicates per output; readers must never
+  share one fifo).
+- Draft artifact in the r3 letter (schema notan-palette/1.0.0-
+  draft.1) is the working text.
