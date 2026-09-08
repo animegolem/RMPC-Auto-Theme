@@ -30,13 +30,11 @@ installer prints the config sample path in its manual output.
 
 ### Addendum (owner, 2026-09-08)
 
-The lyrics separator's LABEL should render in a themed accent
-(contrast against the frame-toned rule), per the owner's sketch.
-Because border_title colors are config-side literals the generator
-cannot patch, round 1 must propose the mechanism — likely moving
-the separator's styled label into a theme-owned surface (component
-or a new mapped path) so the accent role reaches it; the offset
-rule itself stays frame-colored. This rides this ticket, not 005.
+WITHDRAWN 2026-09-08 (owner, on seeing it live): the separator
+label stays frame-colored like its rule — no accent treatment. The
+owner's original contrast instinct turned out to be about the
+UNPAINTED chrome (the [Playing] state, artist name, volume, badge —
+the DQ-4 class), not the label. No mechanism needed for the label.
 
 WIDENED (DQ-4, same day): the label is one instance of a class —
 volume slider/percentage, [zxcv] hint, and the NORMAL/INSERT badge
