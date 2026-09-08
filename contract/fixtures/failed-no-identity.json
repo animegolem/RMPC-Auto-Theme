@@ -1,0 +1,21 @@
+{
+ "schema": "notan-palette/1",
+ "schema_version": "1.0.0",
+ "producer": {
+  "name": "rmpc-auto-theme",
+  "revision": "0000000",
+  "spec_revision": "0.10"
+ },
+ "features": [
+  "selection"
+ ],
+ "fixture_note": "SYNTHETIC conformance fixture. Numerically self-consistent (oklch computed from hex via the reference conversion; contrasts measured); NOT a producer capture.",
+ "sequence": 44,
+ "generated_at": "2026-09-08T15:05:00Z",
+ "status": "failed",
+ "error": "MPD currentsong query failed: timeout",
+ "track": {
+  "file": null,
+  "art_sha256": null
+ }
+}
