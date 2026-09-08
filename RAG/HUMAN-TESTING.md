@@ -12,3 +12,11 @@ Items that need the owner at the keyboard (live rmpc, real album art, perceptual
    (no flicker); kill the generator mid-run — theme intact; no-art
    track = clean base look.
 4. Optional: flip osc11=true in config.toml and watch Ghostty tint.
+
+**2026-09-07 result**: PASSED by owner in live use — retheme <1s
+across multiple albums (Float, Addict Rhythms), same-album no-op
+confirmed, materialized static look confirmed equivalent. No-art
+case WAIVED at the keyboard (no convenient artless record in
+rotation); covered by the exit-2 shell-integration test in temp
+HOME. Mid-run kill considered covered by the same suite. One live
+finding filed: DQ-1 / AI-IMP-005 (selection vs playing row).
