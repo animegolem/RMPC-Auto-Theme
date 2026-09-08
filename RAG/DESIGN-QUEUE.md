@@ -89,3 +89,14 @@ Status: banked, not cut. Candidate post-epic alongside DQ-2; the
 role→ANSI ruling is a design sitting with the owner first. Offered
 by ballast: the hand-built 16-color palette as a starting fixture,
 and live OSC testing from the systems side — accept both when cut.
+
+## DQ-6 — is this a theming engine, not RMPC-Auto-Theme? (open, 2026-09-08)
+
+Owner musing, seconded by RL: the durable work is the color math +
+visual safety (doctrine, roles, floors, solver, event architecture)
+— all frontend-agnostic by construction; the RON emitter is the
+only rmpc-shaped part. Consumers now real or in flight: rmpc
+(shipped), Ghostty OSC (DQ-5), the GPUIX/OpenTUI MPD app (letter to
+astra, mpd-ui-prototype .inbox/toastra r1). If the contract becomes
+the product, a rename + repo reshape (engine crate + consumers)
+follows. OPEN — no ruling; revisit at epic close.
