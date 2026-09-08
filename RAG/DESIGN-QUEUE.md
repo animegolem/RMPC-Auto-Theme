@@ -99,7 +99,13 @@ only rmpc-shaped part. Consumers now real or in flight: rmpc
 (shipped), Ghostty OSC (DQ-5), the GPUIX/OpenTUI MPD app (letter to
 astra, mpd-ui-prototype .inbox/toastra r1). If the contract becomes
 the product, a rename + repo reshape (engine crate + consumers)
-follows. OPEN — no ruling; revisit at epic close.
+follows. OWNER LEAN (2026-09-08): the public repo updates IN
+PLACE and ships as the working version at epic close — the stars
+live on this name and its watchers get the v2 that actually works.
+The engine's eventual home (library inside the grisaille app, or
+its own repo with multiple consumers as masters) stays OPEN and
+does not gate the release. Revisit extraction only after the
+palette contract has a second live consumer.
 
 ## DQ-7 — palette artifact contract v1 (astra consultation, 2026-09-08)
 
