@@ -3,7 +3,7 @@
 
 | Status | Revision | Date       |
 |--------+----------+------------|
-| Draft  | 0.7      | 2026-09-05 |
+| Draft  | 0.8      | 2026-09-07 |
 
 This document is the constitution of the project: every design
 decision derives from it, and amendments land here before they land
@@ -134,7 +134,21 @@ WCAG pair meets its floor.
 | highlight text |     0.14 | 0.10 - 0.18 |
 | frame          |     0.52 | 0.48 - 0.58 |
 | header accent  |     0.76 | 0.70 - 0.82 |
+| selection      |     0.75 | 0.72 - 0.82 |
 | inactive       | = frame (alias) |      |
+
+Selection (rev 0.8, from DQ-1 — cursor row vs playing row must be
+distinguishable in VALUE, owner-ruled): a DERIVED role, not
+art-harvested — C/h taken from the emitted active color, desired
+L = clamp(active.L + 0.10, band), gamut-mapped, then verified on
+final sRGB bytes. Hard floors: highlight text / selection >= 4.5:1,
+and final selection.L - active.L >= 0.08 (an absolute band alone
+can collapse; witness #0ab4be vs #2ac0ca, ΔL 0.037). Both-neutral
+inherits hue with C <= 0.04 but keeps BOTH floors — the 743,580-case
+round-1 sweep found no exemption hole (min ΔL 0.098, worst
+highlight/selection 7.32:1). Provenance: derived:selection(active).
+Config: bands.selection, floors.highlight_selection,
+floors.selection_active_delta_l.
 
 Highlight text is a DARK band by design: active is a mid-tone
 background and 4.5:1 over it is only constructible from below.
@@ -200,7 +214,7 @@ CIELAB-era values; v2 measures hue in OKLch).
 | text_color                             | text                        |
 | borders_style.fg                       | frame                       |
 | highlight_border_style.fg              | frame                       |
-| current_item_style.fg / .bg            | highlight text / active     |
+| current_item_style.fg / .bg            | highlight text / selection  |
 | highlighted_item_style.fg / .bg        | highlight text / active     |
 | tab_bar.active_style.fg / .bg          | highlight text / active     |
 | tab_bar.inactive_style.fg / .bg        | inactive / background       |
@@ -298,6 +312,7 @@ tabs belong in config.ron; the tab bar hides by omitting
 
 | rev | date       | change |
 |-----+------------+--------|
+| 0.8 | 2026-09-07 | DQ-1 rulings: derived selection role (band 0.72-0.82 target 0.75, L = active+0.10 clamped, hard ΔL >= 0.08 and highlight/selection >= 4.5 on final bytes, no neutral exemption) — current_item_style.bg moves to selection in §6; archive equality for IMP-004 defined as the APPLIED pair including runtime wiring (personal-theming cde7862). Round-1 witnesses RL-reproduced to six decimals. |
 | 0.7 | 2026-09-05 | Wave 2 round-1 rulings: §8 reconciled to v3 + two-column Lyrics as canonical (four-view superseded); exit-2 = apply unmodified base + clear hash state; generator stays side-effect-free with --print-config, hook owns OSC 11 write; toml dep approved, Cargo.toml/lock added to fence; 16 None mapped paths to be materialized in the base pair (RL-applied). |
 | 0.6 | 2026-09-05 | Wave 2 owner rulings: generated theme persists to its own file referenced by config.ron (write-then-apply; base never overwritten); OSC 11 ships disabled by default; installer may wire on_song_change only behind an explicit consent flag (ticket text confirmed); IMP-004 re-cut to verify-and-close after the v3 layout superseded the four-view rollout. |
 | 0.5 | 2026-09-04 | §5 alias prose reconciled to the §6 binding map (progress elapsed=active, track/thumb=frame; scrollbar=frame/background); flagged by Code Lead round-2 friction note. |
