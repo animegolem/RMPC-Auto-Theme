@@ -28,6 +28,16 @@ hook vector commented out); SPEC §6's default-base clause amended;
 fixture provenance updated; all goldens regenerated deliberately;
 installer prints the config sample path in its manual output.
 
+### Addendum (owner, 2026-09-08)
+
+The lyrics separator's LABEL should render in a themed accent
+(contrast against the frame-toned rule), per the owner's sketch.
+Because border_title colors are config-side literals the generator
+cannot patch, round 1 must propose the mechanism — likely moving
+the separator's styled label into a theme-owned surface (component
+or a new mapped path) so the accent role reaches it; the offset
+rule itself stays frame-colored. This rides this ticket, not 005.
+
 ### Out of Scope
 
 Layout changes beyond genericizing (strip owner-specific paths,
