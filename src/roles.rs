@@ -8,18 +8,20 @@ pub enum Role {
     Accent,
     Active,
     HighlightText,
+    Selection,
     Frame,
     HeaderAccent,
     Inactive,
 }
 
 impl Role {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::Background,
         Self::Text,
         Self::Accent,
         Self::Active,
         Self::HighlightText,
+        Self::Selection,
         Self::Frame,
         Self::HeaderAccent,
         Self::Inactive,
@@ -32,6 +34,7 @@ impl Role {
             Self::Accent => ACCENT_TONE_BAND,
             Self::Active => ACTIVE_TONE_BAND,
             Self::HighlightText => HIGHLIGHT_TEXT_TONE_BAND,
+            Self::Selection => SELECTION_TONE_BAND,
             Self::Frame | Self::Inactive => FRAME_TONE_BAND,
             Self::HeaderAccent => HEADER_ACCENT_TONE_BAND,
         }
@@ -44,6 +47,7 @@ impl Role {
             Self::Accent => bands.accent,
             Self::Active => bands.active,
             Self::HighlightText => bands.highlight_text,
+            Self::Selection => bands.selection,
             Self::Frame | Self::Inactive => bands.frame,
             Self::HeaderAccent => bands.header_accent,
         }
@@ -56,6 +60,7 @@ impl Role {
             Self::Accent => "accent",
             Self::Active => "active",
             Self::HighlightText => "highlight-text",
+            Self::Selection => "selection",
             Self::Frame => "frame",
             Self::HeaderAccent => "header-accent",
             Self::Inactive => "inactive",
@@ -69,9 +74,10 @@ impl Role {
             Self::Accent => 2,
             Self::Active => 3,
             Self::HighlightText => 4,
-            Self::Frame => 5,
-            Self::HeaderAccent => 6,
-            Self::Inactive => 7,
+            Self::Selection => 5,
+            Self::Frame => 6,
+            Self::HeaderAccent => 7,
+            Self::Inactive => 8,
         }
     }
 }
@@ -115,6 +121,11 @@ pub const HIGHLIGHT_TEXT_TONE_BAND: ToneBand = ToneBand {
     min: 0.10,
     max: 0.18,
 };
+pub const SELECTION_TONE_BAND: ToneBand = ToneBand {
+    target: 0.75,
+    min: 0.72,
+    max: 0.82,
+};
 pub const FRAME_TONE_BAND: ToneBand = ToneBand {
     target: 0.52,
     min: 0.48,
@@ -134,6 +145,7 @@ pub struct ToneBands {
     pub accent: ToneBand,
     pub active: ToneBand,
     pub highlight_text: ToneBand,
+    pub selection: ToneBand,
     pub frame: ToneBand,
     pub header_accent: ToneBand,
 }
@@ -146,6 +158,7 @@ impl Default for ToneBands {
             accent: ACCENT_TONE_BAND,
             active: ACTIVE_TONE_BAND,
             highlight_text: HIGHLIGHT_TEXT_TONE_BAND,
+            selection: SELECTION_TONE_BAND,
             frame: FRAME_TONE_BAND,
             header_accent: HEADER_ACCENT_TONE_BAND,
         }
@@ -173,14 +186,14 @@ pub struct AssignedColor {
     pub tier: SolverTier,
 }
 
-/// The complete set of primary semantic colors.
+/// The complete set of primary and derived semantic colors.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RolePalette {
-    colors: [AssignedColor; 8],
+    colors: [AssignedColor; 9],
 }
 
 impl RolePalette {
-    pub(crate) fn new(colors: [AssignedColor; 8]) -> Self {
+    pub(crate) fn new(colors: [AssignedColor; 9]) -> Self {
         Self { colors }
     }
 
@@ -188,7 +201,7 @@ impl RolePalette {
     ///
     /// The array must follow [`Role::ALL`]. `Inactive` is always rewritten as
     /// an exact color alias of `Frame`, irrespective of its supplied value.
-    pub fn from_assignments(mut colors: [AssignedColor; 8]) -> Result<Self, String> {
+    pub fn from_assignments(mut colors: [AssignedColor; 9]) -> Result<Self, String> {
         for (index, role) in Role::ALL.into_iter().enumerate() {
             if colors[index].role != role {
                 return Err(format!(

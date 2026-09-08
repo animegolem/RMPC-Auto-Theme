@@ -131,6 +131,11 @@ fn fixture_corpus_is_deterministic_and_meets_bands_and_guardrails() {
         assert!(report.text_background >= 4.5, "{name}: {report:?}");
         assert!(report.active_background >= 3.5, "{name}: {report:?}");
         assert!(report.highlight_active >= 4.5, "{name}: {report:?}");
+        assert!(report.highlight_selection >= 4.5, "{name}: {report:?}");
+        assert!(
+            report.selection_active_delta_l >= 0.08,
+            "{name}: {report:?}"
+        );
         assert!(report.frame_background >= 3.0, "{name}: {report:?}");
     }
 }
@@ -142,6 +147,7 @@ fn configured_bands_and_floors_reach_the_solver() {
     config.bands.background.min = 0.11;
     config.bands.background.max = 0.14;
     config.floors.accent_background = 5.0;
+    config.floors.highlight_selection = 5.0;
     config.validate().unwrap();
     let generated =
         generate_with_config(&decode_base64(CHROMATIC), DEFAULT_THEME, &config).unwrap();
@@ -150,6 +156,7 @@ fn configured_bands_and_floors_reach_the_solver() {
     let report =
         validate_palette_with_config(&generated.palette, &config.bands, &config.floors).unwrap();
     assert!(report.accent_background >= 5.0);
+    assert!(report.highlight_selection >= 5.0);
 }
 
 #[test]
@@ -181,11 +188,15 @@ fn monochrome_art_records_neutral_provenance() {
             SolverTier::Neutral,
             "{role:?} did not use neutral tier"
         );
-        assert!(
-            color.origin.contains("neutral"),
-            "{role:?} has non-neutral origin {:?}",
-            color.origin,
-        );
+        if role == Role::Selection {
+            assert_eq!(color.origin, "derived:selection(active)");
+        } else {
+            assert!(
+                color.origin.contains("neutral"),
+                "{role:?} has non-neutral origin {:?}",
+                color.origin,
+            );
+        }
         assert!(
             color.oklch[1] <= 0.04,
             "{role:?} emitted C={}",
@@ -196,6 +207,26 @@ fn monochrome_art_records_neutral_provenance() {
     let report = validate_palette(&generated.palette).unwrap();
     assert!(report.accent_active_both_neutral);
     assert!(report.accent_active_hue_exempt);
+    assert!(report.highlight_selection >= 4.5);
+    assert!(report.selection_active_delta_l >= 0.08);
+}
+
+#[test]
+fn cursor_and_playing_backgrounds_use_distinct_ruled_roles() {
+    let generated = generate(&decode_base64(CHROMATIC), DEFAULT_THEME).unwrap();
+    let selection = hex(generated.palette.get(Role::Selection).rgb);
+    let active = hex(generated.palette.get(Role::Active).rgb);
+
+    assert_ne!(selection, active);
+    assert!(generated.theme.contains(&format!(
+        "current_item_style: (fg: \"#001608\", bg: \"{selection}\""
+    )));
+    assert!(generated
+        .theme
+        .contains("highlighted_item_style: (fg: \"#001608\""));
+    assert!(generated.theme.contains(&format!(
+        "tab_bar: (\n        active_style: (fg: \"#001608\", bg: \"{active}\""
+    )));
 }
 
 #[test]
@@ -234,6 +265,7 @@ fn emitter_preserves_every_byte_outside_mapped_string_tokens() {
 
 fn run_cli(artwork: &[u8], debug: bool) -> Output {
     let mut command = Command::new(env!("CARGO_BIN_EXE_rmpc-theme-gen"));
+    command.args(["--config", "/dev/null"]);
     if debug {
         command.arg("--debug");
     }

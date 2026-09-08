@@ -35,18 +35,18 @@ Generated from tracked files; binary assets excluded.
 ### > 600 LOC
 
 - RAG/scripts/carrier.py (1060 LOC)
-- src/solver.rs (815 LOC)
-- src/emit.rs (752 LOC)
+- src/solver.rs (927 LOC)
+- src/emit.rs (753 LOC)
 - RAG/scripts/codex-relay-wake.py (646 LOC)
 - Cargo.lock (611 LOC)
 
 ### > 300 LOC
 
 - RAG/scripts/generate-index.sh (575 LOC)
-- src/config.rs (412 LOC)
+- src/config.rs (461 LOC)
+- tests/generator.rs (354 LOC)
 - RAG/scripts/codex-app-server-bell.mjs (339 LOC)
 - SPEC.org (332 LOC)
-- tests/generator.rs (322 LOC)
 - fixtures/default_theme.ron (316 LOC)
 - fixtures/chromatic-theme.ron (316 LOC)
 - tests/shell.rs (301 LOC)
