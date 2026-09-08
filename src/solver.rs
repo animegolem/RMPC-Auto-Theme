@@ -18,6 +18,8 @@ pub struct GuardrailFloors {
     pub text_background: f32,
     pub active_background: f32,
     pub highlight_active: f32,
+    pub highlight_selection: f32,
+    pub selection_active_delta_l: f32,
     pub frame_background: f32,
     pub peer_delta_e: f32,
     pub hue_separation: f32,
@@ -30,6 +32,8 @@ impl Default for GuardrailFloors {
             text_background: 4.5,
             active_background: 3.5,
             highlight_active: 4.5,
+            highlight_selection: 4.5,
+            selection_active_delta_l: 0.08,
             frame_background: 3.0,
             peer_delta_e: 25.0,
             hue_separation: 30.0,
@@ -43,6 +47,8 @@ pub struct GuardrailReport {
     pub text_background: f32,
     pub active_background: f32,
     pub highlight_active: f32,
+    pub highlight_selection: f32,
+    pub selection_active_delta_l: f32,
     pub frame_background: f32,
     pub accent_active_delta_e: f32,
     pub accent_active_hue_distance: f32,
@@ -50,7 +56,7 @@ pub struct GuardrailReport {
     pub accent_active_hue_exempt: bool,
 }
 
-/// Assign extracted, dominance-ordered clusters to all eight semantic roles.
+/// Assign extracted, dominance-ordered clusters to the primary and derived roles.
 pub fn assign_roles(clusters: &[ClusterOut]) -> Result<RolePalette, String> {
     assign_roles_with_config(clusters, &ToneBands::default(), &GuardrailFloors::default())
 }
@@ -75,7 +81,7 @@ pub fn assign_roles_with_config(
     })?;
     let header = choose_single(Role::HeaderAccent, clusters, neutral_hue, bands, |_| true)?;
 
-    let (accent, active, highlight) =
+    let (accent, active, highlight, selection) =
         choose_accent_active(clusters, neutral_hue, &background, bands, floors)?;
 
     let inactive = AssignedColor {
@@ -84,7 +90,7 @@ pub fn assign_roles_with_config(
         ..frame.clone()
     };
     let palette = RolePalette::new([
-        background, text, accent, active, highlight, frame, header, inactive,
+        background, text, accent, active, highlight, selection, frame, header, inactive,
     ]);
     validate_palette_with_config(&palette, bands, floors)?;
     Ok(palette)
@@ -124,7 +130,7 @@ fn choose_accent_active(
     background: &AssignedColor,
     bands: &ToneBands,
     floors: &GuardrailFloors,
-) -> Result<(AssignedColor, AssignedColor, AssignedColor), String> {
+) -> Result<(AssignedColor, AssignedColor, AssignedColor, AssignedColor), String> {
     let accents = harvested_candidates(Role::Accent, clusters, bands);
     let actives = harvested_candidates(Role::Active, clusters, bands);
     let highlights = harvested_candidates(Role::HighlightText, clusters, bands);
@@ -150,6 +156,7 @@ fn choose_accent_active(
             delta_floor,
             hue_floor,
             false,
+            bands,
             floors,
         ) {
             return Ok(result);
@@ -172,6 +179,7 @@ fn choose_accent_active(
         RELAXED_PEER_DELTA_E,
         RELAXED_HUE_SEPARATION,
         true,
+        bands,
         floors,
     ) {
         return Ok(result);
@@ -186,10 +194,13 @@ fn choose_accent_active(
         if wcag_contrast(active.rgb, background.rgb) < floors.active_background {
             continue;
         }
-        let Some(highlight) = highlights
-            .iter()
-            .find(|candidate| wcag_contrast(candidate.rgb, active.rgb) >= floors.highlight_active)
-        else {
+        let Some(selection) = derive_selection(&active, bands, floors) else {
+            continue;
+        };
+        let Some(highlight) = highlights.iter().find(|candidate| {
+            wcag_contrast(candidate.rgb, active.rgb) >= floors.highlight_active
+                && wcag_contrast(candidate.rgb, selection.rgb) >= floors.highlight_selection
+        }) else {
             continue;
         };
         if let Some(accent) = accents.iter().find(|candidate| {
@@ -201,10 +212,10 @@ fn choose_accent_active(
                     RELAXED_HUE_SEPARATION,
                 )
         }) {
-            return Ok((accent.clone(), active, highlight.clone()));
+            return Ok((accent.clone(), active, highlight.clone(), selection));
         }
     }
-    Err("no WCAG-compliant accent/active/highlight assignment".to_owned())
+    Err("no guardrail-compliant accent/active/highlight/selection assignment".to_owned())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -217,14 +228,20 @@ fn find_accent_active(
     delta_floor: f32,
     hue_floor: f32,
     require_synthesis: bool,
+    bands: &ToneBands,
     floors: &GuardrailFloors,
-) -> Option<(AssignedColor, AssignedColor, AssignedColor)> {
+) -> Option<(AssignedColor, AssignedColor, AssignedColor, AssignedColor)> {
     for active in actives {
         if wcag_contrast(active.rgb, background.rgb) < floors.active_background {
             continue;
         }
+        let Some(selection) = derive_selection(active, bands, floors) else {
+            continue;
+        };
         for highlight in highlights {
-            if wcag_contrast(highlight.rgb, active.rgb) < floors.highlight_active {
+            if wcag_contrast(highlight.rgb, active.rgb) < floors.highlight_active
+                || wcag_contrast(highlight.rgb, selection.rgb) < floors.highlight_selection
+            {
                 continue;
             }
             for accent in accents {
@@ -252,8 +269,42 @@ fn find_accent_active(
                 if highlight.tier != SolverTier::Synthesized {
                     highlight.tier = SolverTier::Strict;
                 }
-                return Some((accent, active, highlight));
+                let mut selection = selection.clone();
+                selection.tier = active.tier;
+                return Some((accent, active, highlight, selection));
             }
+        }
+    }
+    None
+}
+
+fn derive_selection(
+    active: &AssignedColor,
+    bands: &ToneBands,
+    floors: &GuardrailFloors,
+) -> Option<AssignedColor> {
+    let band = bands.selection;
+    let desired = (active.oklab[0] + 0.10).clamp(band.min, band.max);
+
+    // Search upward from the ruled desired lightness. The search changes L
+    // only: C/h always come from the already emitted active sRGB bytes.
+    for step in 0..=128 {
+        let fraction = step as f32 / 128.0;
+        let lightness = desired + (band.max - desired) * fraction;
+        let Some(candidate) = projected_color(
+            Role::Selection,
+            lightness,
+            active.oklch[1],
+            active.oklch[2],
+            "derived:selection(active)".to_owned(),
+            active.confidence,
+            active.tier,
+            band,
+        ) else {
+            continue;
+        };
+        if candidate.oklab[0] - active.oklab[0] >= floors.selection_active_delta_l {
+            return Some(candidate);
         }
     }
     None
@@ -545,6 +596,7 @@ pub fn validate_palette_with_config(
     let text = palette.get(Role::Text);
     let active = palette.get(Role::Active);
     let highlight = palette.get(Role::HighlightText);
+    let selection = palette.get(Role::Selection);
     let frame = palette.get(Role::Frame);
     let accent_neutral = accent.oklch[1] <= NEUTRAL_THRESHOLD;
     let active_neutral = active.oklch[1] <= NEUTRAL_THRESHOLD;
@@ -553,6 +605,8 @@ pub fn validate_palette_with_config(
         text_background: wcag_contrast(text.rgb, background.rgb),
         active_background: wcag_contrast(active.rgb, background.rgb),
         highlight_active: wcag_contrast(highlight.rgb, active.rgb),
+        highlight_selection: wcag_contrast(highlight.rgb, selection.rgb),
+        selection_active_delta_l: selection.oklab[0] - active.oklab[0],
         frame_background: wcag_contrast(frame.rgb, background.rgb),
         accent_active_delta_e: cie76_delta_e(accent.rgb, active.rgb),
         accent_active_hue_distance: hue_distance(accent.oklch[2], active.oklch[2]),
@@ -582,6 +636,11 @@ pub fn validate_palette_with_config(
             floors.highlight_active,
         ),
         (
+            "highlight/selection",
+            report.highlight_selection,
+            floors.highlight_selection,
+        ),
+        (
             "frame/background",
             report.frame_background,
             floors.frame_background,
@@ -590,6 +649,12 @@ pub fn validate_palette_with_config(
         if actual < floor {
             return Err(format!("{name} contrast {actual:.3} is below {floor:.1}"));
         }
+    }
+    if report.selection_active_delta_l < floors.selection_active_delta_l {
+        return Err(format!(
+            "selection/active deltaL {:.3} is below {:.3}",
+            report.selection_active_delta_l, floors.selection_active_delta_l
+        ));
     }
 
     let (delta_floor, hue_floor) =
@@ -757,7 +822,49 @@ mod tests {
         let report = validate_palette(&palette).unwrap();
         let floors = GuardrailFloors::default();
         assert!(report.highlight_active >= floors.highlight_active);
+        assert!(report.highlight_selection >= floors.highlight_selection);
+        assert!(report.selection_active_delta_l >= floors.selection_active_delta_l);
         assert!(report.frame_background >= floors.frame_background);
+    }
+
+    #[test]
+    fn exhaustive_derived_selection_grid_meets_final_byte_floor() {
+        let bands = ToneBands::default();
+        let floors = GuardrailFloors::default();
+        let mut cases = 0_usize;
+
+        for lightness_step in 0..=50 {
+            let lightness = 0.60 + lightness_step as f32 * 0.002;
+            for chroma_step in 0..=80 {
+                let chroma = chroma_step as f32 * 0.005;
+                for hue_step in 0..180 {
+                    let hue = hue_step as f32 * 2.0;
+                    let requested = color_core::color::oklch_to_oklab([lightness, chroma, hue]);
+                    let rgb = color_core::color::oklab_to_srgb8_gamut_mapped(requested);
+                    let oklab = color_core::color::rgb8_to_oklab(rgb);
+                    let active = AssignedColor {
+                        role: Role::Active,
+                        rgb,
+                        oklab,
+                        oklch: color_core::color::oklab_to_oklch(oklab),
+                        origin: "exhaustive-grid".into(),
+                        confidence: 1.0,
+                        tier: SolverTier::Strict,
+                    };
+                    let selection = derive_selection(&active, &bands, &floors)
+                        .expect("default selection must be constructible");
+
+                    assert!(bands.selection.contains(selection.oklab[0]));
+                    assert_eq!(selection.origin, "derived:selection(active)");
+                    assert!(
+                        selection.oklab[0] - active.oklab[0] >= floors.selection_active_delta_l
+                    );
+                    cases += 1;
+                }
+            }
+        }
+
+        assert_eq!(cases, 743_580);
     }
 
     #[test]
@@ -806,7 +913,12 @@ mod tests {
             let first = assign_roles(&clusters).unwrap();
             let second = assign_roles(&clusters).unwrap();
             assert_eq!(first, second);
-            validate_palette(&first).unwrap();
+            let report = validate_palette(&first).unwrap();
+            assert!(report.highlight_selection >= GuardrailFloors::default().highlight_selection);
+            assert!(
+                report.selection_active_delta_l
+                    >= GuardrailFloors::default().selection_active_delta_l
+            );
             for role in Role::ALL {
                 assert!(role.tone_band().contains(first.get(role).oklab[0]));
             }

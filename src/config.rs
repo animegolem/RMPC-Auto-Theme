@@ -46,6 +46,7 @@ struct FileBands {
     accent: Option<FileBand>,
     active: Option<FileBand>,
     highlight_text: Option<FileBand>,
+    selection: Option<FileBand>,
     frame: Option<FileBand>,
     header_accent: Option<FileBand>,
 }
@@ -65,6 +66,8 @@ struct FileFloors {
     text_background: Option<f32>,
     active_background: Option<f32>,
     highlight_active: Option<f32>,
+    highlight_selection: Option<f32>,
+    selection_active_delta_l: Option<f32>,
     frame_background: Option<f32>,
     peer_delta_e: Option<f32>,
     hue_separation: Option<f32>,
@@ -108,6 +111,7 @@ impl EffectiveConfig {
         merge_band(&mut config.bands.accent, file.bands.accent);
         merge_band(&mut config.bands.active, file.bands.active);
         merge_band(&mut config.bands.highlight_text, file.bands.highlight_text);
+        merge_band(&mut config.bands.selection, file.bands.selection);
         merge_band(&mut config.bands.frame, file.bands.frame);
         merge_band(&mut config.bands.header_accent, file.bands.header_accent);
         macro_rules! floor {
@@ -121,6 +125,8 @@ impl EffectiveConfig {
         floor!(text_background);
         floor!(active_background);
         floor!(highlight_active);
+        floor!(highlight_selection);
+        floor!(selection_active_delta_l);
         floor!(frame_background);
         floor!(peer_delta_e);
         floor!(hue_separation);
@@ -191,6 +197,7 @@ impl EffectiveConfig {
             ("text_background", self.floors.text_background),
             ("active_background", self.floors.active_background),
             ("highlight_active", self.floors.highlight_active),
+            ("highlight_selection", self.floors.highlight_selection),
             ("frame_background", self.floors.frame_background),
         ] {
             if !value.is_finite() || !(1.0..=21.0).contains(&value) {
@@ -205,16 +212,22 @@ impl EffectiveConfig {
         {
             return Err("floors.hue_separation must be from 20 through 180".into());
         }
+        if !self.floors.selection_active_delta_l.is_finite()
+            || !(0.0..=1.0).contains(&self.floors.selection_active_delta_l)
+        {
+            return Err("floors.selection_active_delta_l must be from 0 through 1".into());
+        }
         Ok(())
     }
 
-    fn named_bands(&self) -> [(&'static str, ToneBand); 7] {
+    fn named_bands(&self) -> [(&'static str, ToneBand); 8] {
         [
             ("background", self.bands.background),
             ("text", self.bands.text),
             ("accent", self.bands.accent),
             ("active", self.bands.active),
             ("highlight_text", self.bands.highlight_text),
+            ("selection", self.bands.selection),
             ("frame", self.bands.frame),
             ("header_accent", self.bands.header_accent),
         ]
@@ -273,6 +286,8 @@ impl EffectiveConfig {
             "floors.text_background" => self.floors.text_background = parsed,
             "floors.active_background" => self.floors.active_background = parsed,
             "floors.highlight_active" => self.floors.highlight_active = parsed,
+            "floors.highlight_selection" => self.floors.highlight_selection = parsed,
+            "floors.selection_active_delta_l" => self.floors.selection_active_delta_l = parsed,
             "floors.frame_background" => self.floors.frame_background = parsed,
             "floors.peer_delta_e" => self.floors.peer_delta_e = parsed,
             "floors.hue_separation" => self.floors.hue_separation = parsed,
@@ -287,6 +302,8 @@ impl EffectiveConfig {
             "floors.text_background" => Ok(self.floors.text_background),
             "floors.active_background" => Ok(self.floors.active_background),
             "floors.highlight_active" => Ok(self.floors.highlight_active),
+            "floors.highlight_selection" => Ok(self.floors.highlight_selection),
+            "floors.selection_active_delta_l" => Ok(self.floors.selection_active_delta_l),
             "floors.frame_background" => Ok(self.floors.frame_background),
             "floors.peer_delta_e" => Ok(self.floors.peer_delta_e),
             "floors.hue_separation" => Ok(self.floors.hue_separation),
@@ -316,6 +333,7 @@ fn band_ref<'a>(bands: &'a ToneBands, role: &str) -> Option<&'a ToneBand> {
         "accent" => Some(&bands.accent),
         "active" => Some(&bands.active),
         "highlight_text" => Some(&bands.highlight_text),
+        "selection" => Some(&bands.selection),
         "frame" => Some(&bands.frame),
         "header_accent" => Some(&bands.header_accent),
         _ => None,
@@ -329,6 +347,7 @@ fn band_mut<'a>(bands: &'a mut ToneBands, role: &str) -> Option<&'a mut ToneBand
         "accent" => Some(&mut bands.accent),
         "active" => Some(&mut bands.active),
         "highlight_text" => Some(&mut bands.highlight_text),
+        "selection" => Some(&mut bands.selection),
         "frame" => Some(&mut bands.frame),
         "header_accent" => Some(&mut bands.header_accent),
         _ => None,
@@ -383,13 +402,19 @@ mod tests {
     #[test]
     fn partial_config_merges_over_spec_defaults() {
         let config = EffectiveConfig::from_toml(
-            "quality = 4\nosc11 = true\n[bands.accent]\ntarget = 0.75\n",
+            "quality = 4\nosc11 = true\n[bands.accent]\ntarget = 0.75\n\
+             [bands.selection]\ntarget = 0.76\n[floors]\nhighlight_selection = 5.0\n\
+             selection_active_delta_l = 0.09\n",
         )
         .unwrap();
         assert_eq!(config.quality, 4);
         assert!(config.osc11);
         assert_eq!(config.bands.accent.target, 0.75);
         assert_eq!(config.bands.accent.min, 0.68);
+        assert_eq!(config.bands.selection.target, 0.76);
+        assert_eq!(config.bands.selection.min, 0.72);
+        assert_eq!(config.floors.highlight_selection, 5.0);
+        assert_eq!(config.floors.selection_active_delta_l, 0.09);
     }
 
     #[test]
@@ -397,6 +422,7 @@ mod tests {
         assert!(EffectiveConfig::from_toml("mystery = 1").is_err());
         assert!(EffectiveConfig::from_toml("quality = 5").is_err());
         assert!(EffectiveConfig::from_toml("[bands.text]\nmin = 0.95").is_err());
+        assert!(EffectiveConfig::from_toml("[floors]\nselection_active_delta_l = 1.1").is_err());
     }
 
     #[test]
@@ -404,9 +430,32 @@ mod tests {
         let mut config = EffectiveConfig::default();
         config.apply_override("bands.frame.target=0.53").unwrap();
         config
+            .apply_override("bands.selection.target=0.76")
+            .unwrap();
+        config
             .apply_override("floors.accent_background=5.0")
             .unwrap();
+        config
+            .apply_override("floors.highlight_selection=5.0")
+            .unwrap();
+        config
+            .apply_override("floors.selection_active_delta_l=0.09")
+            .unwrap();
         assert_eq!(config.print_value("bands.frame.target").unwrap(), "0.53");
+        assert_eq!(
+            config.print_value("bands.selection.target").unwrap(),
+            "0.76"
+        );
         assert_eq!(config.print_value("floors.accent_background").unwrap(), "5");
+        assert_eq!(
+            config.print_value("floors.highlight_selection").unwrap(),
+            "5"
+        );
+        assert_eq!(
+            config
+                .print_value("floors.selection_active_delta_l")
+                .unwrap(),
+            "0.09"
+        );
     }
 }

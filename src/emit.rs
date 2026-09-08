@@ -54,7 +54,7 @@ const BINDINGS: &[Binding] = &[
     },
     Binding {
         path: "current_item_style.bg",
-        role: Role::Active,
+        role: Role::Selection,
     },
     Binding {
         path: "highlighted_item_style.fg",
@@ -572,6 +572,7 @@ mod tests {
                 Role::Accent => [0x21, 0x43, 0x65],
                 Role::Active => [0x76, 0x54, 0x32],
                 Role::HighlightText => [0x01, 0x23, 0x45],
+                Role::Selection => [0xba, 0xdc, 0x0d],
                 Role::Frame => [0x77, 0x88, 0x99],
                 Role::HeaderAccent => [0xab, 0xcd, 0xef],
                 Role::Inactive => [0xff, 0x00, 0xff],

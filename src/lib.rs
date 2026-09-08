@@ -97,6 +97,11 @@ fn debug_report(
         (Role::Text, Role::Background, floors.text_background),
         (Role::Active, Role::Background, floors.active_background),
         (Role::HighlightText, Role::Active, floors.highlight_active),
+        (
+            Role::HighlightText,
+            Role::Selection,
+            floors.highlight_selection,
+        ),
         (Role::Frame, Role::Background, floors.frame_background),
     ] {
         let ratio = solver::wcag_contrast(palette.get(left).rgb, palette.get(right).rgb);
@@ -114,6 +119,11 @@ fn debug_report(
         "  accent / active deltaE={:.3} hue={:.1}°\n",
         solver::cie76_delta_e(accent.rgb, active.rgb),
         solver::hue_distance(accent.oklch[2], active.oklch[2]),
+    ));
+    output.push_str(&format!(
+        "  selection / active deltaL={:.3} (floor {:.3})\n",
+        palette.get(Role::Selection).oklab[0] - active.oklab[0],
+        floors.selection_active_delta_l,
     ));
 
     output.push_str(&format!("patched paths ({}):\n", patched.len()));

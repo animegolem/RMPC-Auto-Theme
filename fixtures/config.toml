@@ -27,6 +27,11 @@ target = 0.14
 min = 0.10
 max = 0.18
 
+[bands.selection]
+target = 0.75
+min = 0.72
+max = 0.82
+
 [bands.frame]
 target = 0.52
 min = 0.48
@@ -42,6 +47,8 @@ accent_background = 4.5
 text_background = 4.5
 active_background = 3.5
 highlight_active = 4.5
+highlight_selection = 4.5
+selection_active_delta_l = 0.08
 frame_background = 3.0
 peer_delta_e = 25.0
 hue_separation = 30.0

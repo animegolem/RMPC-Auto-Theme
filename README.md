@@ -78,8 +78,15 @@ target = 0.74
 min = 0.68
 max = 0.80
 
+[bands.selection]
+target = 0.75
+min = 0.72
+max = 0.82
+
 [floors]
 accent_background = 4.5
+highlight_selection = 4.5
+selection_active_delta_l = 0.08
 peer_delta_e = 25.0
 hue_separation = 30.0
 ```

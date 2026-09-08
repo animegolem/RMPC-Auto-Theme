@@ -52,10 +52,10 @@ tests/, fixtures/ (regenerated goldens), SPEC.org (via RL).
 Before marking an item complete on the checklist MUST **stop** and **think**. Have you validated all aspects are **implemented** and **tested**? 
 </CRITICAL_RULE>
 
-- [ ] Round-1 numeric proposal: selection band + ΔL floor, with
+- [x] Round-1 numeric proposal: selection band + ΔL floor, with
       counterexample search like Wave 1's.
-- [ ] Binding map split; AST/golden tests updated deliberately.
-- [ ] Guardrail verification incl. both-neutral case.
+- [x] Binding map split; AST/golden tests updated deliberately.
+- [x] Guardrail verification incl. both-neutral case.
 - [ ] Gates green; owner visual pass on 2-3 real albums.
 
 ### Acceptance Criteria
@@ -67,4 +67,10 @@ still holds.
 
 ### Issues Encountered
 
-(to be filled during implementation)
+- The user's live default config made the CLI integration test inherit a
+  non-fixture base theme. The test now passes an explicit empty config so it
+  remains hermetic without touching the owner surface.
+- The chromatic golden changed by exactly the ruled token:
+  `current_item_style.bg` moved from active `#be8100` to derived selection
+  `#dfa039`. The owner visual pass remains pending after review/merge and live
+  application.

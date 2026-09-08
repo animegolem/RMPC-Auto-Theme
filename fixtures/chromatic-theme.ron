@@ -13,7 +13,7 @@
     preview_label_style: (fg: "#eaa000"),
     preview_metadata_group_style: (fg: "#eaa000", modifiers: "Bold"),
     highlighted_item_style: (fg: "#001608", modifiers: "Bold"),
-    current_item_style: (fg: "#001608", bg: "#be8100", modifiers: "Bold"),
+    current_item_style: (fg: "#001608", bg: "#dfa039", modifiers: "Bold"),
     borders_style: (fg: "#8c5f00"),
     highlight_border_style: (fg: "#8c5f00"),
     symbols: (
