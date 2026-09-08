@@ -136,3 +136,36 @@ future producer ticket (rides behind IMP-006):
   share one fifo).
 - Draft artifact in the r3 letter (schema notan-palette/1.0.0-
   draft.1) is the working text.
+
+## DQ-7 addendum — contract v1 frozen semantics (r4/r5, 2026-09-08)
+
+Grisaille's conformance review (their RAG/reviews/sprint-001-
+round-1.md) reshaped the contract; frozen in the r5 letter, binding
+on the producer ticket:
+
+- CORRELATION: engine coalesces by ARTWORK (deterministic per art
+  bytes); consumer matching key = track.file vs its own observed
+  MPD current song; art_sha256 is provenance/cache only. sequence +
+  generated_at debug-only, no cross-restart meaning.
+- ARTIFACT NEVER RETAINS: describes only the current attempt;
+  ok | no-art (neutral roles, art null, clusters []) | failed
+  (roles/pairs/clusters ABSENT, error set, track identity of the
+  failing event). Retention is consumer-owned. Publish EVERY
+  attempt, atomic rename, producer-owned dir, path via
+  --print-config palette_path.
+- TWO REPRESENTATIONS: role oklch = computed from final bytes
+  (tolerance ±0.002/±0.5°); clusters carry oklch_extraction.
+  Never conflated. (Astra caught the RL publishing illustrative
+  OKLCH labeled as real — owned in r5; fixture-vs-capture labeling
+  is now contract law.)
+- WIRE: notan-palette/1, semver from first capture; explicit
+  features array (no capability-by-prose); roles present-or-absent
+  never null; inactive eternal alias; unknown fields ignored;
+  share/ordering/id rules; verified_pairs is the COMPLETE guarantee
+  incl. highlight_text/selection and a delta_l entry; gradient
+  ABSENT in v1.
+- READINESS: JSON publisher exists at NO revision yet — it is
+  IMP-006 scope; acceptance includes a committed capture from
+  fixtures/chromatic.png.b64 (full hash, revision, command,
+  output). Grisaille proceeds fixture-driven until then.
+- Their sprint review file must be read before BRIEF-004 is cut.
