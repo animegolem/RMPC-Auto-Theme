@@ -26,3 +26,14 @@ source, no drift); hook short-circuit key becomes (art hash,
 lyrics-presence bool) so reflow happens only on transitions;
 lyrics presence resolved the way rmpc resolves `.lrc` sidecars.
 Status: banked, not cut — candidate first post-epic ticket.
+
+## DQ-3 — ship the owner's v3 pair as the project default (2026-09-08)
+
+Owner ruling: "this theme will be the example/default theme we
+ship." Today §6 defaults the base to upstream example_theme. The
+shipped default becomes a genericized v3 pair: the theme (np_header
++ tab chrome + labeled lyrics separator) and a sample config
+(4 tabs, keybinds, hook wiring commented). Requires: SPEC §6
+amendment, --print-base-theme content change, fixtures/default
+regeneration (byte-exact provenance moves from upstream to this
+repo), installer sample. RULED into AI-IMP-006.
