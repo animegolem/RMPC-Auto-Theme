@@ -1,9 +1,8 @@
 # notan-palette/1 — palette artifact contract
 
-Status: RATIFIED IN SUBSTANCE 2026-09-17 (grisaille r16 approving
-r13-r15 dispositions; no-art emission predicate adopted from r16
-verbatim; full ratification completes on grisaille's review of this
-folded revision). Amendment record: interpolation semantics +
+Status: RATIFIED 2026-09-17 — grisaille r18, full ratification of
+this folded revision at fixture head 447975c, document digest
+pinned in that letter (sha256 fa0d0696…96bd). Amendment record: interpolation semantics +
 no-art predicate + stock-default wording folded 2026-09-17 from
 DQ-7 addendum 3 and letters r14-r16; every change letter-traced,
 none silent. Synthetic-fixture stage: The producer (JSON publisher) exists

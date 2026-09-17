@@ -44,11 +44,12 @@ Generated from tracked files; binary assets excluded.
 
 - RAG/scripts/generate-index.sh (575 LOC)
 - src/config.rs (461 LOC)
+- SPEC.org (355 LOC)
 - tests/generator.rs (354 LOC)
 - RAG/scripts/codex-app-server-bell.mjs (339 LOC)
-- SPEC.org (333 LOC)
 - fixtures/default_theme.ron (316 LOC)
 - fixtures/chromatic-theme.ron (316 LOC)
+- RAG/DESIGN-QUEUE.md (305 LOC)
 - tests/shell.rs (301 LOC)
 
 ---

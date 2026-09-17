@@ -113,12 +113,33 @@ design-only:
    contract word "neutral" is therefore a misnomer and amends to
    stock-default language at ratification. Consequences: the
    no-art envelope carries the shipped default's actual palette
-   WITH its verified pairs (the default's 34/0 + floor coverage
-   makes it a verified palette, satisfying the pairs-required-in-
-   no-art law); no-art.json regenerates from the frozen v3
-   default within this sitting, ending its byte-identity with
-   ok.json. Achromatic fixture coverage is already carried by
-   achromatic-wrap.json, so nothing is lost by this ruling.
+   WITH its verified pairs — [SUPERSEDED 2026-09-17 by the
+   ratified emission predicate (contract a4435c6, grisaille
+   r16/r18): the shipped default keeps terminal-dependent `reset`
+   colors, so the DEFAULT install emits ABSENT-bundle no-art
+   envelopes; a bundle is emitted only when the entire required
+   role set resolves to actual final RGB bytes AND satisfies all
+   declared floors. The fixture family already landed at 447975c;
+   no-art.json is the stock absent-bundle case and is NOT
+   regenerated from the v3 default.] Achromatic fixture coverage
+   is carried by achromatic-wrap.json.
+
+### Addendum 5 (2026-09-17): no-art producer acceptance cases (grisaille r18)
+
+Required producer acceptance, until implementation and test
+evidence exist — the emission predicate's three input classes:
+
+1. Fully resolvable all-#000000 base: theme output unchanged;
+   artifact is `no-art` with roles AND verified_pairs absent, no
+   selection capability in `features`; a producer diagnostic
+   names the failed floors. (Wire-identical to case 3 by design —
+   the distinction is diagnostics-observable only; this is why it
+   is a producer test, not a decoder fixture.)
+2. Fully-hex base that genuinely passes all floors: bundle
+   emitted (roles + pairs together), selection capability present
+   iff the selection role is emitted.
+3. Terminal-dependent stock base (`reset`/named colors): bundle
+   absent; theme output is the unmodified stock base.
 
 Capture selection (extends addendum 2d): choose a SATURATED cover
 for the golden capture — extraction-vs-hex divergence is largest
@@ -156,9 +177,14 @@ Before marking an item complete on the checklist MUST **stop** and **think**. Ha
 - [ ] Hook double-fire root cause traced with evidence; single-
       flight guard + log discipline landed; concurrent-invocation
       test (two simultaneous runs → one extraction, coherent log).
-- [ ] Sixth fixture (achromatic cluster + hue-wrap pair) authored
-      by two-implementation agreement; no-art semantics settled
-      and fixture corrected to match.
+- [x] Sixth fixture (achromatic cluster + hue-wrap pair) authored
+      by two-implementation agreement (02961c1); no-art semantics
+      settled (ratified predicate, a4435c6) and fixture family
+      corrected to match (447975c) — done by RL ahead of the
+      sitting.
+- [ ] Addendum-5 producer acceptance cases implemented and tested
+      (all-black floor-fail with diagnostics; passing-hex bundle;
+      stock-base absent bundle).
 - [ ] Gates green; validate-tickets clean.
 
 ### Acceptance Criteria
