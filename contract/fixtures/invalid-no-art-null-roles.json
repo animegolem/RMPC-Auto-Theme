@@ -1,0 +1,23 @@
+{
+  "schema": "notan-palette/1",
+  "schema_version": "1.0.0",
+  "fixture_note": "INVALID fixture (negative case): no-art with roles: null. Roles are never null in any status; conforming decoders REJECT this artifact (keep last usable).",
+  "producer": {
+    "name": "rmpc-auto-theme",
+    "revision": "0000000",
+    "spec_revision": "0.11"
+  },
+  "features": [],
+  "sequence": 42,
+  "generated_at": "2026-09-08T15:03:00Z",
+  "status": "no-art",
+  "track": {
+    "file": "Various/No Cover/01 - Untitled.flac",
+    "artist": "Various",
+    "album": "No Cover",
+    "title": "Untitled",
+    "art_sha256": null
+  },
+  "clusters": [],
+  "roles": null
+}

@@ -1,0 +1,178 @@
+{
+  "schema": "notan-palette/1",
+  "schema_version": "1.0.0",
+  "fixture_note": "SYNTHETIC conformance fixture. The FULLY-HEX no-art case: the effective base theme is fully hex-resolvable AND meets every declared floor, so roles and verified_pairs are emitted together (the emission predicate's passing branch). Role set reused from achromatic-wrap.json, whose numbers are two-implementation verified. clusters [] and art_sha256 null per no-art shape.",
+  "producer": {
+    "name": "rmpc-auto-theme",
+    "revision": "0000000",
+    "spec_revision": "0.11"
+  },
+  "features": [
+    "selection"
+  ],
+  "sequence": 43,
+  "generated_at": "2026-09-08T15:04:00Z",
+  "status": "no-art",
+  "track": {
+    "file": "Various/No Cover/02 - Pinned Base.flac",
+    "artist": "Various",
+    "album": "No Cover",
+    "title": "Pinned Base",
+    "art_sha256": null
+  },
+  "roles": {
+    "background": {
+      "hex": "#0f0408",
+      "oklch": [
+        0.130552,
+        0.025563,
+        353.74
+      ],
+      "origin": "synthetic-fixture",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "highlight_text": {
+      "hex": "#12050a",
+      "oklch": [
+        0.140959,
+        0.027797,
+        354.101
+      ],
+      "origin": "synthetic-fixture",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "frame": {
+      "hex": "#88586d",
+      "oklch": [
+        0.519655,
+        0.069402,
+        351.955
+      ],
+      "origin": "synthetic-fixture",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "active": {
+      "hex": "#cc6e81",
+      "oklch": [
+        0.649931,
+        0.11978,
+        8.08
+      ],
+      "origin": "synthetic-fixture",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "accent": {
+      "hex": "#1bbfd6",
+      "oklch": [
+        0.738981,
+        0.124228,
+        210.418
+      ],
+      "origin": "synthetic-fixture",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "selection": {
+      "hex": "#f18b9f",
+      "oklch": [
+        0.750635,
+        0.125358,
+        7.946
+      ],
+      "origin": "synthetic-fixture",
+      "tier": "strict",
+      "kind": "derived",
+      "derived_from": "active"
+    },
+    "header_accent": {
+      "hex": "#65c1d1",
+      "oklch": [
+        0.760265,
+        0.090383,
+        210.17
+      ],
+      "origin": "synthetic-fixture",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "text": {
+      "hex": "#f3cbdb",
+      "oklch": [
+        0.880872,
+        0.049496,
+        352.155
+      ],
+      "origin": "synthetic-fixture",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "inactive": {
+      "alias_of": "frame",
+      "hex": "#88586d",
+      "oklch": [
+        0.519655,
+        0.069402,
+        351.955
+      ],
+      "kind": "base"
+    }
+  },
+  "verified_pairs": [
+    {
+      "kind": "contrast",
+      "fg": "text",
+      "bg": "background",
+      "floor": 4.5,
+      "measured": 13.808
+    },
+    {
+      "kind": "contrast",
+      "fg": "accent",
+      "bg": "background",
+      "floor": 4.5,
+      "measured": 9.095
+    },
+    {
+      "kind": "contrast",
+      "fg": "active",
+      "bg": "background",
+      "floor": 3.5,
+      "measured": 5.873
+    },
+    {
+      "kind": "contrast",
+      "fg": "highlight_text",
+      "bg": "active",
+      "floor": 4.5,
+      "measured": 5.814
+    },
+    {
+      "kind": "contrast",
+      "fg": "highlight_text",
+      "bg": "selection",
+      "floor": 4.5,
+      "measured": 8.494
+    },
+    {
+      "kind": "contrast",
+      "fg": "frame",
+      "bg": "background",
+      "floor": 3.0,
+      "measured": 3.519
+    },
+    {
+      "kind": "delta_l",
+      "roles": [
+        "selection",
+        "active"
+      ],
+      "floor": 0.08,
+      "measured": 0.100704
+    }
+  ],
+  "clusters": []
+}

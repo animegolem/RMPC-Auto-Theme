@@ -1,178 +1,22 @@
 {
- "schema": "notan-palette/1",
- "schema_version": "1.0.0",
- "producer": {
-  "name": "rmpc-auto-theme",
-  "revision": "0000000",
-  "spec_revision": "0.10"
- },
- "features": [
-  "selection"
- ],
- "fixture_note": "SYNTHETIC conformance fixture. Numerically self-consistent (oklch computed from hex via the reference conversion; contrasts measured); NOT a producer capture.",
- "sequence": 42,
- "generated_at": "2026-09-08T15:03:00Z",
- "status": "no-art",
- "track": {
-  "file": "Various/No Cover/01 - Untitled.flac",
-  "artist": "Various",
-  "album": "No Cover",
-  "title": "Untitled",
-  "art_sha256": null
- },
- "roles": {
-  "background": {
-   "hex": "#140200",
-   "oklch": [
-    0.128885,
-    0.041866,
-    38.356
-   ],
-   "origin": "synthetic-fixture",
-   "tier": "strict",
-   "kind": "base"
+  "schema": "notan-palette/1",
+  "schema_version": "1.0.0",
+  "fixture_note": "SYNTHETIC conformance fixture. The STOCK-BASE no-art case: the effective base theme uses terminal-dependent reset/named colors, so no role bundle resolves to portable final bytes \u2014 roles and verified_pairs are BOTH ABSENT (never null, never partial), features omits selection, clusters is [] and art_sha256 null per no-art's own shape. Distinct from failed: nothing failed; there is no art.",
+  "producer": {
+    "name": "rmpc-auto-theme",
+    "revision": "0000000",
+    "spec_revision": "0.11"
   },
-  "text": {
-   "hex": "#f8d700",
-   "oklch": [
-    0.880169,
-    0.181863,
-    97.906
-   ],
-   "origin": "synthetic-fixture",
-   "tier": "strict",
-   "kind": "base"
+  "features": [],
+  "sequence": 42,
+  "generated_at": "2026-09-08T15:03:00Z",
+  "status": "no-art",
+  "track": {
+    "file": "Various/No Cover/01 - Untitled.flac",
+    "artist": "Various",
+    "album": "No Cover",
+    "title": "Untitled",
+    "art_sha256": null
   },
-  "accent": {
-   "hex": "#00ca80",
-   "oklch": [
-    0.739167,
-    0.172093,
-    158.272
-   ],
-   "origin": "synthetic-fixture",
-   "tier": "strict",
-   "kind": "base"
-  },
-  "active": {
-   "hex": "#a58f00",
-   "oklch": [
-    0.650152,
-    0.134457,
-    98.242
-   ],
-   "origin": "synthetic-fixture",
-   "tier": "strict",
-   "kind": "base"
-  },
-  "highlight_text": {
-   "hex": "#00160a",
-   "oklch": [
-    0.17647,
-    0.040635,
-    158.922
-   ],
-   "origin": "synthetic-fixture",
-   "tier": "strict",
-   "kind": "base"
-  },
-  "frame": {
-   "hex": "#7a6900",
-   "oklch": [
-    0.521239,
-    0.10773,
-    98.012
-   ],
-   "origin": "synthetic-fixture",
-   "tier": "strict",
-   "kind": "base"
-  },
-  "header_accent": {
-   "hex": "#ccb100",
-   "oklch": [
-    0.760751,
-    0.157285,
-    98.137
-   ],
-   "origin": "synthetic-fixture",
-   "tier": "strict",
-   "kind": "base"
-  },
-  "inactive": {
-   "alias_of": "frame",
-   "hex": "#7a6900",
-   "oklch": [
-    0.521239,
-    0.10773,
-    98.012
-   ],
-   "kind": "base"
-  },
-  "selection": {
-   "hex": "#dfa039",
-   "oklch": [
-    0.748885,
-    0.1367,
-    75.573
-   ],
-   "origin": "synthetic-fixture",
-   "tier": "strict",
-   "kind": "derived",
-   "derived_from": "active"
-  }
- },
- "verified_pairs": [
-  {
-   "kind": "contrast",
-   "fg": "text",
-   "bg": "background",
-   "floor": 4.5,
-   "measured": 14.167
-  },
-  {
-   "kind": "contrast",
-   "fg": "accent",
-   "bg": "background",
-   "floor": 4.5,
-   "measured": 9.399
-  },
-  {
-   "kind": "contrast",
-   "fg": "active",
-   "bg": "background",
-   "floor": 3.5,
-   "measured": 6.287
-  },
-  {
-   "kind": "contrast",
-   "fg": "highlight_text",
-   "bg": "active",
-   "floor": 4.5,
-   "measured": 5.834
-  },
-  {
-   "kind": "contrast",
-   "fg": "highlight_text",
-   "bg": "selection",
-   "floor": 4.5,
-   "measured": 8.243
-  },
-  {
-   "kind": "contrast",
-   "fg": "frame",
-   "bg": "background",
-   "floor": 3.0,
-   "measured": 3.706
-  },
-  {
-   "kind": "delta_l",
-   "roles": [
-    "selection",
-    "active"
-   ],
-   "floor": 0.08,
-   "measured": 0.098733
-  }
- ],
- "clusters": []
+  "clusters": []
 }
