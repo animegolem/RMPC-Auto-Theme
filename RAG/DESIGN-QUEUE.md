@@ -194,6 +194,20 @@ colors. Steward's proposed ruling, additive and non-breaking
   roles; an achromatic endpoint contributes no hue — adopt the
   chromatic endpoint's hue; two achromatic endpoints make hue
   irrelevant.
+- NORMATIVE ALGORITHM (added 2026-09-17 per grisaille r12 finding
+  R5, which proved the prior "OKLab/OKLCH" wording permits two
+  visibly different ramps — counterexample two-implementation
+  verified: achromatic-wrap ids 0/3 at t=0.5 give #63526b via
+  Cartesian OKLab vs #4f5096 via polar OKLCH): cluster ramp
+  interpolation is POLAR OKLCH — L and C linear, H shortest-arc;
+  a 180.0° hue opposition breaks toward increasing hue;
+  achromatic endpoints per the adoption rule below. Cartesian
+  OKLab interpolation is NOT conforming for cluster ramps.
+  Intermediate out-of-gamut values: for display, chroma-clip at
+  constant L and H to the sRGB boundary. Expected midpoint
+  vector, verified by two independent implementations (Astra
+  r12; RL reproduction 2026-09-17): ids 0×3, t=0.5 → OKLCH
+  [0.465, 0.112779, 281.0] → #4f5096.
 - The achromatic policy binds ALL operations on hue, not only
   emission (termviz's framing, adopted 2026-09-17 after both
   co-authors' verifiers independently missed it in one script
