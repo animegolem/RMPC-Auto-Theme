@@ -200,14 +200,33 @@ colors. Steward's proposed ruling, additive and non-breaking
   verified: achromatic-wrap ids 0/3 at t=0.5 give #63526b via
   Cartesian OKLab vs #4f5096 via polar OKLCH): cluster ramp
   interpolation is POLAR OKLCH — L and C linear, H shortest-arc;
-  a 180.0° hue opposition breaks toward increasing hue;
-  achromatic endpoints per the adoption rule below. Cartesian
-  OKLab interpolation is NOT conforming for cluster ramps.
-  Intermediate out-of-gamut values: for display, chroma-clip at
-  constant L and H to the sRGB boundary. Expected midpoint
-  vector, verified by two independent implementations (Astra
-  r12; RL reproduction 2026-09-17): ids 0×3, t=0.5 → OKLCH
-  [0.465, 0.112779, 281.0] → #4f5096.
+  at exact 180.0° opposition the path is the semicircle ASCENDING
+  FROM THE LOWER-VALUED HUE ENDPOINT (amended 2026-09-17 from
+  "breaks toward increasing [from-]hue" after termviz's analysis:
+  the order-based rule made lerp(a,b,t) ≠ lerp(b,a,1-t) at
+  opposition, breaking the reasonable invariant that A→B is the
+  reverse of B→A, and made the naive signed-delta-clamp
+  implementation non-conforming in exactly one argument order.
+  The pair rule restores order symmetry everywhere — stated as an
+  invariant: lerp(a,b,t) == lerp(b,a,1-t) — and the obvious
+  implementation is conforming as written); achromatic endpoints
+  per the adoption rule below. Cartesian OKLab interpolation is
+  NOT conforming for cluster ramps.
+  Out-of-gamut intermediates: chroma-reduce at constant L and H
+  for display — NON-NORMATIVE guidance, demoted 2026-09-17: two
+  careful implementations produced #00736e vs #007872 from the
+  same clip instruction, so no conformance claim attaches to
+  out-of-gamut display bytes, and all expected vectors below are
+  chosen IN GAMUT so conformance never touches the clip.
+  Expected vectors, each requiring BOTH argument orders to agree:
+  - General case (three-implementation verified: Astra r12, RL,
+    termviz): achromatic-wrap ids 0×3, t=0.5 →
+    [0.465, 0.112779, 281.0] → #4f5096.
+  - Exact opposition (guards the tie-break; an order-based
+    implementation fails one spelling): (0.50, 0.07, 100.0) ×
+    (0.50, 0.07, 280.0), t=0.5, both orders →
+    [0.500000, 0.070000, 190.0] → #29706c; endpoints and midpoint
+    all in gamut (RL-verified; termviz cross-check requested).
 - The achromatic policy binds ALL operations on hue, not only
   emission (termviz's framing, adopted 2026-09-17 after both
   co-authors' verifiers independently missed it in one script
