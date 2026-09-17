@@ -74,6 +74,38 @@ addendum 3 (cluster interpolation semantics) is PROPOSED with
 grisaille — no publisher code change, but capture provenance notes
 must name its ratification status at capture time.
 
+### Addendum 4 (2026-09-17, same day): fixture coverage + no-art semantics
+
+termviz's fixture audit (third implementation; roles recompute to
+dH < 0.0005°, no finding) exposed two gaps while round 1 is still
+design-only:
+
+1. **No fixture guards the addendum-3 rules.** ok.json's clusters
+   have min C = 0.0249 (~250x the achromatic threshold) and all
+   hues within 4°; an implementation with the achromatic-hue
+   rainbow bug, or a naive linear hue lerp, conforms against every
+   current fixture. Add a SIXTH synthetic fixture: at least one
+   cluster at C < 1e-4 / H = 0.0 exactly, plus a pair straddling
+   the hue wrap (e.g. ~352° and ~8°). Authoring method: termviz
+   proposes exact numbers from their implementation, RL verifies
+   independently — two implementations agree before it becomes
+   golden.
+2. **no-art.json's roles are byte-identical to ok.json's and
+   chromatic**, while the contract calls no-art the "neutral
+   path". Round 1 must settle what neutral MEANS before the
+   shipped default freezes it: does no-art carry the shipped
+   default's actual palette (then the contract word "neutral" is
+   wrong and amends), or an achromatic/near-achromatic set (which
+   would also give gap 1's achromatic coverage for free)? Owner
+   taste may bear on this — flag in the round-1 proposal rather
+   than assuming.
+
+Capture selection (extends addendum 2d): choose a SATURATED cover
+for the golden capture — extraction-vs-hex divergence is largest
+near the gamut boundary, which is exactly what DQ-7 addendum 3
+made normative; a desaturated sleeve leaves the rule unexercised
+by the golden too.
+
 ### Out of Scope
 
 Layout changes beyond genericizing (strip owner-specific paths,
@@ -104,6 +136,9 @@ Before marking an item complete on the checklist MUST **stop** and **think**. Ha
 - [ ] Hook double-fire root cause traced with evidence; single-
       flight guard + log discipline landed; concurrent-invocation
       test (two simultaneous runs → one extraction, coherent log).
+- [ ] Sixth fixture (achromatic cluster + hue-wrap pair) authored
+      by two-implementation agreement; no-art semantics settled
+      and fixture corrected to match.
 - [ ] Gates green; validate-tickets clean.
 
 ### Acceptance Criteria

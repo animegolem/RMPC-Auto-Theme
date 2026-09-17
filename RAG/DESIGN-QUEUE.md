@@ -225,3 +225,10 @@ alone drifts toward implausibly saturated darks; sRGB byte
 multiply is simply wrong). Their table beat the naive sRGB lerp it
 replaced (0.164ms → 0.100ms at 160×45): perceptual interpolation
 came out cheaper than the wrong thing.
+
+One more consumer note (termviz, same day): ok.json's shares sum
+to exactly 1.0000 but the contract permits ≤ 1.001, and real
+captures with unclustered pixels may sum to LESS — a consumer that
+assumes normalization is right on the fixture and subtly wrong on
+real art. Normalize by the observed sum. (Also flags that a future
+fixture should sum to less than 1.0 for exactly this reason.)
