@@ -3,7 +3,7 @@
 
 | Status | Revision | Date       |
 |--------+----------+------------|
-| Draft  | 0.10     | 2026-09-08 |
+| Draft  | 0.11     | 2026-09-17 |
 
 This document is the constitution of the project: every design
 decision derives from it, and amendments land here before they land
@@ -197,9 +197,25 @@ CIELAB-era values; v2 measures hue in OKLch).
   =unwrap_newtypes=, =unwrap_variant_newtypes=).
 - Colors are emitted as 7-byte hex (=#rrggbb=) only; rmpc accepts no
   shorthand or alpha forms.
-- The base theme defaults to rmpc's =example_theme.ron= equivalent
-  (upstream-test-guaranteed equal to =UiConfigFile::default()=) when
-  the user has none.
+- The base theme defaults to the SHIPPED V3 PAIR (rev 0.11, DQ-3
+  ruling implemented by AI-IMP-006): a genericized copy of the
+  owner's v3 base — np_header, tab chrome, frame-colored Lyrics
+  separator, materialized reset literals, no personal paths — with
+  a matching sample config.ron beside it (four tabs, keybinds,
+  hook vector and Pane(Cava) both present but commented; README
+  carries the cava fifo setup procedure). The shipped base carries
+  every mapped path (34/0 by construction). Chrome completeness
+  (DQ-4): the round-1-ratified role table covers volume
+  slider/percent/thumb (accent) + track (frame), [Playing]/artist
+  (header_accent), [zxcv] states (frame/header_accent/accent),
+  NORMAL (active bg + highlight_text fg), INSERT (accent bg +
+  highlight_text fg), separator rule and label (frame); slider and
+  cava =bar_color= styles are materialized before mapping; album
+  table style is mapped. EXEMPTION: level severity colors stay
+  literal — they are semantic (the color is the signal; an
+  error-red rethemed to album-amber stops meaning error). The DQ-4
+  law reads: no literal CHROME color survives a full retheme;
+  semantic severity colors are exempt by this ruling.
 - Patching mechanics (rev 0.3): serde round-tripping is FORBIDDEN as
   the emission path — ron 0.12 re-serialization drops pragmas,
   reorders content, expands defaults, and cannot preserve comments
@@ -251,8 +267,13 @@ CIELAB-era values; v2 measures hue in OKLch).
   validates tabs against the DEFAULT theme's components. The TUI
   itself is unaffected. v2 tooling MUST NOT use =debuginfo= as a
   config validator on 0.11.0.
-- Art acquisition: =rmpc albumart -o -=; exit codes 0/1/2/3 are
-  honored (3 = no song → exit). Exit 2 (no art), rev 0.7 ruling:
+- Art acquisition (rev 0.11 identity fence): art MUST be fetched
+  addressed by the ADMITTED file identity (MPD =albumart= /
+  =readpicture= by URI), never by implicit current song — a
+  mid-fetch track switch must not label B's bytes with A's
+  identity. =rmpc albumart -o -= remains acceptable only where the
+  admitted identity is re-verified at admission-token recheck;
+  exit codes 0/1/2/3 are honored (3 = no song → exit). Exit 2 (no art), rev 0.7 ruling:
   the hook applies the UNMODIFIED base theme through the same
   write-then-apply path and clears the art-hash state, so the next
   track with art regenerates. No-art tracks read as the base look,
@@ -321,6 +342,7 @@ tabs belong in config.ron; the tab bar hides by omitting
 
 | rev | date       | change |
 |-----+------------+--------|
+| 0.11 | 2026-09-17 | BRIEF-004 round-1 rulings: shipped default base = genericized v3 pair with sample config (§6); DQ-4 role table ratified with severity-color exemption (semantic colors stay literal); art acquisition file-addressed by admitted identity (§7 fence); no-art THEME path unchanged (stock base) while the ENVELOPE shape (roles present iff hex-resolvable) is a proposed contract amendment with grisaille (r14), not yet law. Verdict: RAG/reviews/BRIEF-004-round-1-verdict.md. |
 | 0.10 | 2026-09-08 | Owner visual pass on IMP-005: assignment REVERSED — the playing row wears the lighter derived selection, the cursor the darker active (§6 swap of current/highlighted item bg). Solver unchanged: highlight text was already verified against both backgrounds. |
 | 0.9 | 2026-09-08 | §1 identity statement: event-based retheme engine (whole-document-over-IPC per player event; layout reconfiguration in scope by construction). DQ-2 banked (reactive lyrics layout). No behavioral change. |
 | 0.8 | 2026-09-07 | DQ-1 rulings: derived selection role (band 0.72-0.82 target 0.75, L = active+0.10 clamped, hard ΔL >= 0.08 and highlight/selection >= 4.5 on final bytes, no neutral exemption) — current_item_style.bg moves to selection in §6; archive equality for IMP-004 defined as the APPLIED pair including runtime wiring (personal-theming cde7862). Round-1 witnesses RL-reproduced to six decimals. |
