@@ -169,3 +169,34 @@ on the producer ticket:
   fixtures/chromatic.png.b64 (full hash, revision, command,
   output). Grisaille proceeds fixture-driven until then.
 - Their sprint review file must be read before BRIEF-004 is cut.
+
+## DQ-7 addendum 3 (PROPOSED) — cluster interpolation semantics (2026-09-17)
+
+Raised by termviz (second conformance decoder, users-bb seat): the
+contract names both cluster coordinates but not which one a
+consumer INTERPOLATES; two decoders could conform while rendering
+visibly different gradients, with divergence largest for saturated
+colors. Steward's proposed ruling, additive and non-breaking
+(grisaille consumes roles discretely; no surface of theirs moves):
+
+- `hex` is normative for at-rest swatch display and for everything
+  contrast-bearing (already law via verified_pairs on final bytes).
+- `oklch_extraction` is normative for CONTINUOUS INTERPOLATION
+  between clusters: interpolate in OKLab/OKLCH via the named
+  reference conversion, converting per sample for display. Its
+  pre-quantization precision is the point; interpolating quantized
+  sRGB bands and hue-drifts.
+- Interpolated in-between colors inherit NO guarantees —
+  verified_pairs remains the complete guarantee; this composes
+  with, not against, that law.
+- Hue path: shortest arc. The achromatic policy (C < 1e-4 →
+  H = 0.0 exactly) applies to cluster oklch_extraction as well as
+  roles; an achromatic endpoint contributes no hue — adopt the
+  chromatic endpoint's hue; two achromatic endpoints make hue
+  irrelevant.
+
+Status: PROPOSED — moves to Astra by letter (r9) per the
+never-silently rule; binding on IMP-006's contract text once
+ratified. Independent Ottosson-conversion round-trip checks from
+termviz (against the ±0.002 / ±0.5° tolerance) are welcomed as
+conformance evidence alongside grisaille's.
