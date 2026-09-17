@@ -194,6 +194,18 @@ colors. Steward's proposed ruling, additive and non-breaking
   roles; an achromatic endpoint contributes no hue — adopt the
   chromatic endpoint's hue; two achromatic endpoints make hue
   irrelevant.
+- The achromatic policy binds ALL operations on hue, not only
+  emission (termviz's framing, adopted 2026-09-17 after both
+  co-authors' verifiers independently missed it in one script
+  each): below the threshold, hue is not a quantity at all.
+  Converting any grey through the matrices yields C ~ 1e-9 dust
+  whose atan2 angle is rounding-dependent — so an unclamped hue
+  comparison, interpolation, or display is nondeterministic
+  BETWEEN conforming implementations, not merely untidy. Clamp
+  before any hue operation; violations are spec violations.
+  Guarded by fixtures/achromatic-wrap.json (sixth fixture,
+  authored by two-implementation agreement: termviz numbers, RL
+  independent derivation, byte count and every value verified).
 
 Status: PROPOSED — moves to Astra by letter (r9) per the
 never-silently rule; binding on IMP-006's contract text once

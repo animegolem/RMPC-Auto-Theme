@@ -1,0 +1,229 @@
+{
+  "schema": "notan-palette/1",
+  "schema_version": "1.0.0",
+  "fixture_note": "SYNTHETIC conformance fixture. Numerically self-consistent (role oklch computed from hex via the reference conversion; contrasts measured); NOT a producer capture. Guards three properties no other fixture exercises: an achromatic cluster carrying synthetic H=0.0, a cluster hue pair straddling the 0/360 wrap, and cluster shares summing to less than 1.0.",
+  "producer": {
+    "name": "rmpc-auto-theme",
+    "revision": "0000000",
+    "spec_revision": "0.10"
+  },
+  "features": [
+    "selection"
+  ],
+  "sequence": 57,
+  "generated_at": "2026-09-17T12:00:00Z",
+  "status": "ok",
+  "track": {
+    "file": "Tarnished Bell/Wrapped Around Zero/03 - Synthetic Hue.flac",
+    "artist": "Tarnished Bell",
+    "album": "Wrapped Around Zero",
+    "title": "Synthetic Hue",
+    "art_sha256": "9f2c41a7be05d38e6c1bb47f0a9d3e5182c7460fbd914a2e35c807de6b1f4a93"
+  },
+  "roles": {
+    "background": {
+      "hex": "#0f0408",
+      "oklch": [
+        0.130552,
+        0.025563,
+        353.74
+      ],
+      "origin": "synthetic-fixture",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "highlight_text": {
+      "hex": "#12050a",
+      "oklch": [
+        0.140959,
+        0.027797,
+        354.101
+      ],
+      "origin": "synthetic-fixture",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "frame": {
+      "hex": "#88586d",
+      "oklch": [
+        0.519655,
+        0.069402,
+        351.955
+      ],
+      "origin": "synthetic-fixture",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "active": {
+      "hex": "#cc6e81",
+      "oklch": [
+        0.649931,
+        0.11978,
+        8.08
+      ],
+      "origin": "synthetic-fixture",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "accent": {
+      "hex": "#1bbfd6",
+      "oklch": [
+        0.738981,
+        0.124228,
+        210.418
+      ],
+      "origin": "synthetic-fixture",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "selection": {
+      "hex": "#f18b9f",
+      "oklch": [
+        0.750635,
+        0.125358,
+        7.946
+      ],
+      "origin": "synthetic-fixture",
+      "tier": "strict",
+      "kind": "derived",
+      "derived_from": "active"
+    },
+    "header_accent": {
+      "hex": "#65c1d1",
+      "oklch": [
+        0.760265,
+        0.090383,
+        210.17
+      ],
+      "origin": "synthetic-fixture",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "text": {
+      "hex": "#f3cbdb",
+      "oklch": [
+        0.880872,
+        0.049496,
+        352.155
+      ],
+      "origin": "synthetic-fixture",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "inactive": {
+      "alias_of": "frame",
+      "hex": "#88586d",
+      "oklch": [
+        0.519655,
+        0.069402,
+        351.955
+      ],
+      "kind": "base"
+    }
+  },
+  "verified_pairs": [
+    {
+      "kind": "contrast",
+      "fg": "text",
+      "bg": "background",
+      "floor": 4.5,
+      "measured": 13.808
+    },
+    {
+      "kind": "contrast",
+      "fg": "accent",
+      "bg": "background",
+      "floor": 4.5,
+      "measured": 9.095
+    },
+    {
+      "kind": "contrast",
+      "fg": "active",
+      "bg": "background",
+      "floor": 3.5,
+      "measured": 5.873
+    },
+    {
+      "kind": "contrast",
+      "fg": "highlight_text",
+      "bg": "active",
+      "floor": 4.5,
+      "measured": 5.814
+    },
+    {
+      "kind": "contrast",
+      "fg": "highlight_text",
+      "bg": "selection",
+      "floor": 4.5,
+      "measured": 8.494
+    },
+    {
+      "kind": "contrast",
+      "fg": "frame",
+      "bg": "background",
+      "floor": 3.0,
+      "measured": 3.519
+    },
+    {
+      "kind": "delta_l",
+      "roles": [
+        "selection",
+        "active"
+      ],
+      "floor": 0.08,
+      "measured": 0.100704
+    }
+  ],
+  "clusters": [
+    {
+      "id": 0,
+      "share": 0.401,
+      "hex": "#822155",
+      "oklch_extraction": [
+        0.42,
+        0.14,
+        352.0
+      ]
+    },
+    {
+      "id": 1,
+      "share": 0.268,
+      "hex": "#d45a77",
+      "oklch_extraction": [
+        0.63,
+        0.155,
+        8.0
+      ]
+    },
+    {
+      "id": 2,
+      "share": 0.174,
+      "hex": "#0d0d0d",
+      "oklch_extraction": [
+        0.16,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "id": 3,
+      "share": 0.079,
+      "hex": "#0c7381",
+      "oklch_extraction": [
+        0.51,
+        0.085558,
+        210.0
+      ]
+    },
+    {
+      "id": 4,
+      "share": 0.041,
+      "hex": "#e0d8b7",
+      "oklch_extraction": [
+        0.88,
+        0.045,
+        95.0
+      ]
+    }
+  ]
+}
