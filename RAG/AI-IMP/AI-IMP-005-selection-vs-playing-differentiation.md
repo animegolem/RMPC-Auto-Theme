@@ -5,12 +5,12 @@ tags:
   - Implementation
   - rust
   - solver
-kanban_status: planned
+kanban_status: completed
 depends_on: ["AI-IMP-003"]
 parent_epic: [[AI-EPIC-001-album-art-driven-live-theming]]
 confidence_score: 0.8
 date_created: 2026-09-07
-date_completed:
+date_completed: 2026-09-17
 ---
 
 # AI-IMP-005-selection-vs-playing-differentiation
@@ -56,7 +56,10 @@ Before marking an item complete on the checklist MUST **stop** and **think**. Ha
       counterexample search like Wave 1's.
 - [x] Binding map split; AST/golden tests updated deliberately.
 - [x] Guardrail verification incl. both-neutral case.
-- [ ] Gates green; owner visual pass on 2-3 real albums.
+- [x] Gates green; owner visual pass on 2-3 real albums.
+      (2026-09-17: fmt/clippy clean, 28 tests green; visual pass =
+      SPEC rev 0.10 owner ruling (64ee75e) after daily live use
+      since 2026-09-08; closure approved by owner in-session.)
 
 ### Acceptance Criteria
 

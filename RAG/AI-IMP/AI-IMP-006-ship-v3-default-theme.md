@@ -56,6 +56,24 @@ captured artifact from fixtures/chromatic.png.b64 (full hash,
 revision, command, output) committed as the conformance golden;
 (e) failed-status publishes with never-invented identity.
 
+### Addendum 3 (2026-09-17): hook single-flight + second consumer
+
+The double-invocation observation
+(RAG/observations/2026-09-17-hook-double-invocation.md, reported by
+termviz, reproduced by RL): trace the double fire's actual source
+with evidence FIRST (two rmpc instances vs. double event delivery
+— no guessed fix), then a single-flight guard around extraction
+and stderr log discipline (per-invocation prefix or line
+buffering). The same hook revision carries publish-per-event
+(addendum 2a) and --publish-current (2b) — one revision, three
+fixes; do not split them.
+
+Consumer context: termviz joins as second independent conformance
+decoder; the addendum-2d capture distribution includes them. DQ-7
+addendum 3 (cluster interpolation semantics) is PROPOSED with
+grisaille — no publisher code change, but capture provenance notes
+must name its ratification status at capture time.
+
 ### Out of Scope
 
 Layout changes beyond genericizing (strip owner-specific paths,
@@ -83,6 +101,9 @@ Before marking an item complete on the checklist MUST **stop** and **think**. Ha
 - [ ] Embedded base + sample config ship; rmpc 0.11 parse-verified.
 - [ ] 34/0 coverage property holds on the shipped base.
 - [ ] Goldens regenerated deliberately; provenance documented.
+- [ ] Hook double-fire root cause traced with evidence; single-
+      flight guard + log discipline landed; concurrent-invocation
+      test (two simultaneous runs → one extraction, coherent log).
 - [ ] Gates green; validate-tickets clean.
 
 ### Acceptance Criteria

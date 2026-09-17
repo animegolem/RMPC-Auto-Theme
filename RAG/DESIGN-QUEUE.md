@@ -200,3 +200,28 @@ never-silently rule; binding on IMP-006's contract text once
 ratified. Independent Ottosson-conversion round-trip checks from
 termviz (against the ±0.002 / ±0.5° tolerance) are welcomed as
 conformance evidence alongside grisaille's.
+
+### Addendum 3 conformance evidence (2026-09-17, same day)
+
+termviz implemented the ruling and the reference conversion
+(their 55d6dc7): third independent Ottosson implementation agrees
+with ours to worst Lab component delta 0.000005 — 400x inside the
+±0.002 tolerance — and the sRGB round trip is EXACT over 636,056
+colors (holds because forward quantizes only at the end, so the
+cube-root/cube pair inverts in f32 before any 8-bit step; a
+property of the conversion being clean, not the tolerance being
+loose). Standing note for conformance records, at their
+suggestion: record OBSERVED agreement beside permitted tolerance —
+a future implementation landing anywhere near ±0.002 is a bug with
+room to hide, not a pass. Achromatic-hue rule implemented and
+tested both directions plus no-chroma-gain-through-gray.
+
+Non-normative consumer guidance (theirs, offered for the notes):
+real-time consumers should bake the OKLCH ramp into a lookup table
+at construction (theirs: 256 positions × 32 brightness levels) —
+per-sample conversion costs three powf; dimming belongs on the
+table axis as OKLCH L scaling WITH chroma scaled alongside (L
+alone drifts toward implausibly saturated darks; sRGB byte
+multiply is simply wrong). Their table beat the naive sRGB lerp it
+replaced (0.164ms → 0.100ms at 160×45): perceptual interpolation
+came out cheaper than the wrong thing.
