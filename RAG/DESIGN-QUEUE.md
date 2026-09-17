@@ -226,7 +226,24 @@ colors. Steward's proposed ruling, additive and non-breaking
     implementation fails one spelling): (0.50, 0.07, 100.0) ×
     (0.50, 0.07, 280.0), t=0.5, both orders →
     [0.500000, 0.070000, 190.0] → #29706c; endpoints and midpoint
-    all in gamut (RL-verified; termviz cross-check requested).
+    all in gamut. TWO-IMPLEMENTATION VERIFIED (RL + termviz, both
+    spellings identical to every digit, 2026-09-17).
+  Implementation note (termviz, adopted verbatim in spirit): plain
+  shortest-arc normalization SUFFICES; do not special-case
+  opposition. The two clamps already encode the pair rule — a
+  delta of +180 ascends from `from` precisely when `from` is the
+  lower endpoint, −180 descends precisely when it is the higher:
+  the same semicircle traversed from either end. termviz's 8/8
+  table showed clamp-only matches the pair rule on every spelling
+  of four opposed pairs, while an ascent-forcing special case
+  broke four of eight and violated the invariant at every t, not
+  only the midpoint. Naive code was right twice today.
+  Clip-demotion rationale, recorded (termviz): "chroma-clip at
+  constant L and H" is under-determined in at least three
+  independent places — boundary-search tolerance, sub-boundary
+  headroom, and 8-bit rounding mode; pinning all three would be a
+  lot of normative text protecting nothing a consumer can observe
+  in isolation.
 - The achromatic policy binds ALL operations on hue, not only
   emission (termviz's framing, adopted 2026-09-17 after both
   co-authors' verifiers independently missed it in one script
