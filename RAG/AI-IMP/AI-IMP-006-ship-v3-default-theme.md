@@ -89,7 +89,24 @@ design-only:
    the hue wrap (e.g. ~352° and ~8°). Authoring method: termviz
    proposes exact numbers from their implementation, RL verifies
    independently — two implementations agree before it becomes
-   golden.
+   golden. VERIFIED 2026-09-17: termviz's proposed
+   achromatic-wrap.json reproduced number-for-number by RL
+   (clusters, roles exact, pairs to 3 decimals, delta_l to 6,
+   share sum 0.9630, all stated values in-gamut). Authoring
+   method notes, binding on future fixtures: (a) hand-authored
+   oklch MUST be gamut-mapped before publication (chroma-clip at
+   constant L/H to the boundary with headroom) — oklch_extraction
+   is post-gamut-map by definition, and a clipping value
+   contradicts the field's semantics; the symptom is a divergence
+   spike vs recompute(hex). (b) Verifiers must apply the
+   achromatic policy BEFORE hue comparison — raw atan2 on an
+   achromatic color compares meaningless float dust; RL's own
+   verifier tripped exactly this way on first run, which is the
+   fixture demonstrating its purpose. (c) id 4 deliberately
+   carries dH=0.896 vs recompute(hex) — low-chroma hue
+   conditioning, kept as a hazard demonstration: cluster hue is
+   NOT recoverable from hex within role tolerance and consumers
+   must not assume it.
 2. **no-art.json's roles are byte-identical to ok.json's and
    chromatic**, while the contract calls no-art the "neutral
    path". Round 1 must settle what neutral MEANS before the
