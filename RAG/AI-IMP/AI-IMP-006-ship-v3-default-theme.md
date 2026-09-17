@@ -107,15 +107,18 @@ design-only:
    conditioning, kept as a hazard demonstration: cluster hue is
    NOT recoverable from hex within role tolerance and consumers
    must not assume it.
-2. **no-art.json's roles are byte-identical to ok.json's and
-   chromatic**, while the contract calls no-art the "neutral
-   path". Round 1 must settle what neutral MEANS before the
-   shipped default freezes it: does no-art carry the shipped
-   default's actual palette (then the contract word "neutral" is
-   wrong and amends), or an achromatic/near-achromatic set (which
-   would also give gap 1's achromatic coverage for free)? Owner
-   taste may bear on this — flag in the round-1 proposal rather
-   than assuming.
+2. **no-art semantics RULED (owner, 2026-09-17, in-session):**
+   no-art goes to the STOCK terminal theme — the shipped default
+   palette, chromatic as it is; not an achromatic set. The
+   contract word "neutral" is therefore a misnomer and amends to
+   stock-default language at ratification. Consequences: the
+   no-art envelope carries the shipped default's actual palette
+   WITH its verified pairs (the default's 34/0 + floor coverage
+   makes it a verified palette, satisfying the pairs-required-in-
+   no-art law); no-art.json regenerates from the frozen v3
+   default within this sitting, ending its byte-identity with
+   ok.json. Achromatic fixture coverage is already carried by
+   achromatic-wrap.json, so nothing is lost by this ruling.
 
 Capture selection (extends addendum 2d): choose a SATURATED cover
 for the golden capture — extraction-vs-hex divergence is largest

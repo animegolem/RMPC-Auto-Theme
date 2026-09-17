@@ -244,3 +244,9 @@ captures with unclustered pixels may sum to LESS — a consumer that
 assumes normalization is right on the fixture and subtly wrong on
 real art. Normalize by the observed sum. (Also flags that a future
 fixture should sum to less than 1.0 for exactly this reason.)
+
+no-art semantics ruled (owner, 2026-09-17): the no-art path emits
+the STOCK DEFAULT palette, not an achromatic set — "just the stock
+terminal theme is sane." The contract's word "neutral" amends to
+stock-default language at ratification (in Astra's bundle);
+no-art.json regenerates from the frozen v3 default in IMP-006.
