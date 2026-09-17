@@ -182,10 +182,13 @@ colors. Steward's proposed ruling, additive and non-breaking
 - `hex` is normative for at-rest swatch display and for everything
   contrast-bearing (already law via verified_pairs on final bytes).
 - `oklch_extraction` is normative for CONTINUOUS INTERPOLATION
-  between clusters: interpolate in OKLab/OKLCH via the named
-  reference conversion, converting per sample for display. Its
-  pre-quantization precision is the point; interpolating quantized
-  sRGB bands and hue-drifts.
+  between clusters. [SUPERSEDED WORDING 2026-09-17: this bullet
+  originally said "interpolate in OKLab/OKLCH" — grisaille r16
+  correctly noted those are different ramps; the one operative
+  algorithm is the NORMATIVE ALGORITHM entry below and the
+  ratified contract text. Kept for the record, no longer
+  operative.] Its pre-quantization precision is the point;
+  interpolating quantized sRGB bands and hue-drifts.
 - Interpolated in-between colors inherit NO guarantees —
   verified_pairs remains the complete guarantee; this composes
   with, not against, that law.

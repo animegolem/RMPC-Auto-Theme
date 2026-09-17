@@ -1,6 +1,12 @@
-# notan-palette/1 — palette artifact contract (draft for ratification)
+# notan-palette/1 — palette artifact contract
 
-Status: synthetic-fixture stage. The producer (JSON publisher) exists
+Status: RATIFIED IN SUBSTANCE 2026-09-17 (grisaille r16 approving
+r13-r15 dispositions; no-art emission predicate adopted from r16
+verbatim; full ratification completes on grisaille's review of this
+folded revision). Amendment record: interpolation semantics +
+no-art predicate + stock-default wording folded 2026-09-17 from
+DQ-7 addendum 3 and letters r14-r16; every change letter-traced,
+none silent. Synthetic-fixture stage: The producer (JSON publisher) exists
 at no revision; it is AI-IMP-006 scope. Fixtures in `fixtures/` are
 SYNTHETIC and labeled so; they are numerically self-consistent
 (oklch computed from hex via the reference conversion below,
@@ -51,8 +57,24 @@ Required in every artifact: `schema`, `schema_version`, `producer
 
 - `ok`: + `roles`, `verified_pairs`, `clusters`;
   `track.art_sha256` full 64-hex.
-- `no-art`: + `roles` (neutral path, all floors still verified),
-  `verified_pairs`; `clusters: []`; `art_sha256: null`.
+- `no-art`: `clusters: []`; `track.art_sha256: null`. The theme
+  surface applies the UNMODIFIED stock base (owner ruling
+  2026-09-17); the artifact never invents RGB or contrast claims
+  for terminal-dependent `reset`/named colors. Emission predicate
+  (grisaille r16, adopted verbatim): emit `roles` and
+  `verified_pairs` TOGETHER only when the entire required role
+  bundle resolves to actual final RGB bytes AND satisfies all
+  applicable declared pair floors; otherwise omit BOTH, claiming
+  no portable verified palette. Hex resolvability is necessary,
+  not sufficient (an all-#000000 base resolves and fails every
+  floor). A floor-failing resolvable base reports its reason in
+  producer diagnostics, never in the artifact. Roles/pairs are
+  both-present or both-absent — never null, never a partial
+  bundle. `no-art` remains distinct from `failed`: nothing
+  failed; there is no art; consumer retention rules apply, and
+  retained colors are never relabeled as a verified current-track
+  palette. The absent-clusters rule here is no-art's own
+  (`clusters: []`), not `failed`'s absent-field shorthand.
 - `failed`: + `error` (string). `roles`/`verified_pairs`/`clusters`
   ABSENT. `track.file` MAY be null when identity itself was
   unobtainable (e.g. MPD query failure) — never invented.
@@ -69,10 +91,17 @@ Canonical keys: background, text, accent, active, highlight_text,
 frame, header_accent, inactive, selection. A role is PRESENT with
 full data or ABSENT; never null. `inactive` always present, always
 `{alias_of: "frame"}` + its color data. `selection` carries
-`kind: "derived", derived_from: "active"`. Role `oklch` is COMPUTED
+`kind: "derived", derived_from: "active"`. "Always present" for
+`inactive` is scoped to the EMITTED role bundle — an absent-bundle
+`no-art` artifact carries no roles at all. Role `oklch` is COMPUTED
 FROM the final emitted sRGB bytes (this is the only meaning);
 tolerance vs any conforming implementation ±0.002 (L, C), ±0.5°
-(H). Achromatic policy: C < 1e-4 → H = 0.0 exactly.
+(H). Achromatic policy: C < 1e-4 → H = 0.0 exactly — and the
+policy binds ALL operations on hue (emission, comparison,
+interpolation, display), not only emission: below the threshold,
+hue is not a quantity; unclamped hue operations on achromatic
+values are nondeterministic between conforming implementations
+and are spec violations.
 
 Reference conversion: sRGB (IEC 61966-2-1 EOTF, D65) → OKLab per
 Björn Ottosson's published matrices (the same conversion the
@@ -88,6 +117,31 @@ projection. Shares in (0,1], sum ≤ 1.0 + 0.001; ordered
 share-descending, ties by ascending id; ids unique within one
 artifact only.
 
+## Cluster interpolation (normative)
+
+`hex` is normative for at-rest swatch display and everything
+contrast-bearing. `oklch_extraction` is normative for CONTINUOUS
+INTERPOLATION between clusters. The one conforming algorithm is
+POLAR OKLCH: L and C linear; H by shortest arc; at exact 180.0°
+opposition the path is the semicircle ascending from the
+lower-valued hue endpoint — a property of the pair, giving the
+invariant lerp(a,b,t) == lerp(b,a,1-t) everywhere. An achromatic
+endpoint contributes no hue (adopt the chromatic endpoint's hue;
+two achromatic endpoints make hue irrelevant). Cartesian OKLab
+interpolation is NOT conforming for cluster ramps. Interpolated
+in-between colors inherit NO guarantees. Implementation note:
+plain shortest-arc normalization suffices; do not special-case
+opposition (the signed-delta clamps already encode the pair rule).
+Out-of-gamut intermediates: chroma-reduce at constant L and H for
+display — non-normative guidance; no conformance claim attaches
+to out-of-gamut display bytes. Expected vectors (each requires
+BOTH argument orders to agree; all values in gamut):
+- General (three-implementation verified): achromatic-wrap ids
+  0×3, t=0.5 → [0.465, 0.112779, 281.0] → #4f5096.
+- Exact opposition (two-implementation verified):
+  (0.50, 0.07, 100.0) × (0.50, 0.07, 280.0), t=0.5, both orders →
+  [0.500000, 0.070000, 190.0] → #29706c.
+
 ## verified_pairs
 
 Discriminated by `kind`:
@@ -96,10 +150,14 @@ Discriminated by `kind`:
 - `{"kind":"delta_l","roles":[a,b],"floor","measured"}` — OKLab L
   difference (a minus b) on final bytes, 6 decimals.
 The list is the COMPLETE guarantee; nothing outside it is claimed,
-including compositions of listed pairs. Required in `ok` AND
-`no-art` (neutral palettes are verified palettes): the six contrast
+including compositions of listed pairs. Required in `ok`; in
+`no-art`, present exactly when the role bundle is emitted (see the
+emission predicate — when a no-art palette is expressible in
+bytes AND meets its floors, it is verified; otherwise the
+artifact stays silent instead of inventing). The six contrast
 pairs + the selection/active delta_l, whenever `selection` is in
-`features`.
+`features`; `features` omits the selection capability whenever no
+selection role is emitted.
 
 ## Non-goals (v1)
 
