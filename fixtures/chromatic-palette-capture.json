@@ -1,0 +1,228 @@
+{
+  "schema": "notan-palette/1",
+  "schema_version": "1.0.0",
+  "producer": {
+    "name": "rmpc-auto-theme",
+    "revision": "src-dc6702270d19e9658b89c929bb0bd3587b59dfa7de9feaca9b58002c01e50155",
+    "spec_revision": "0.13"
+  },
+  "features": [
+    "selection"
+  ],
+  "sequence": 1,
+  "generated_at": "2026-09-18T11:00:54Z",
+  "status": "ok",
+  "track": {
+    "file": "A/B.flac",
+    "artist": "Test",
+    "album": "Chromatic",
+    "title": "Cover",
+    "art_sha256": "517adccc702a83ff23028bd5488c0d28dfd0edcb44326c80cfe32ca099b42fba"
+  },
+  "roles": {
+    "accent": {
+      "hex": "#32c978",
+      "oklch": [
+        0.7400884032249451,
+        0.17005641758441925,
+        154.3150634765625
+      ],
+      "origin": "cluster[1]:projected",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "active": {
+      "hex": "#be8100",
+      "oklch": [
+        0.6490774750709534,
+        0.1365445852279663,
+        75.64481353759766
+      ],
+      "origin": "cluster[0]:projected",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "background": {
+      "hex": "#0d001d",
+      "oklch": [
+        0.1297103613615036,
+        0.06828685849905014,
+        302.5146789550781
+      ],
+      "origin": "cluster[2]:projected",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "frame": {
+      "hex": "#8c5f00",
+      "oklch": [
+        0.5204876661300659,
+        0.10906434804201126,
+        76.59953308105469
+      ],
+      "origin": "cluster[0]:projected",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "header_accent": {
+      "hex": "#eaa000",
+      "oklch": [
+        0.7591193914413452,
+        0.15963435173034668,
+        75.7323989868164
+      ],
+      "origin": "cluster[0]:projected",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "highlight_text": {
+      "hex": "#001608",
+      "oklch": [
+        0.17587284743785858,
+        0.04332135245203972,
+        155.18704223632812
+      ],
+      "origin": "cluster[1]:projected",
+      "tier": "strict",
+      "kind": "base"
+    },
+    "inactive": {
+      "hex": "#8c5f00",
+      "oklch": [
+        0.5204876661300659,
+        0.10906434804201126,
+        76.59953308105469
+      ],
+      "kind": "base",
+      "alias_of": "frame"
+    },
+    "selection": {
+      "hex": "#dfa039",
+      "oklch": [
+        0.7488846182823181,
+        0.13670016825199127,
+        75.57322692871094
+      ],
+      "origin": "derived:selection(active)",
+      "tier": "strict",
+      "kind": "derived",
+      "derived_from": "active"
+    },
+    "text": {
+      "hex": "#ffce88",
+      "oklch": [
+        0.8791072368621826,
+        0.10354429483413696,
+        75.62268829345703
+      ],
+      "origin": "cluster[0]:projected",
+      "tier": "strict",
+      "kind": "base"
+    }
+  },
+  "verified_pairs": [
+    {
+      "kind": "contrast",
+      "fg": "text",
+      "bg": "background",
+      "floor": 4.5,
+      "measured": 13.95
+    },
+    {
+      "kind": "contrast",
+      "fg": "accent",
+      "bg": "background",
+      "floor": 4.5,
+      "measured": 9.433
+    },
+    {
+      "kind": "contrast",
+      "fg": "active",
+      "bg": "background",
+      "floor": 3.5,
+      "measured": 6.116
+    },
+    {
+      "kind": "contrast",
+      "fg": "highlight_text",
+      "bg": "active",
+      "floor": 4.5,
+      "measured": 5.66
+    },
+    {
+      "kind": "contrast",
+      "fg": "highlight_text",
+      "bg": "selection",
+      "floor": 4.5,
+      "measured": 8.249
+    },
+    {
+      "kind": "contrast",
+      "fg": "frame",
+      "bg": "background",
+      "floor": 3.0,
+      "measured": 3.626
+    },
+    {
+      "kind": "delta_l",
+      "roles": [
+        "selection",
+        "active"
+      ],
+      "floor": 0.07999999821186066,
+      "measured": 0.099807
+    }
+  ],
+  "clusters": [
+    {
+      "id": 0,
+      "share": 0.25,
+      "hex": "#f5aa19",
+      "oklch_extraction": [
+        0.7906087636947632,
+        0.16144920657803222,
+        75.99482560170924
+      ]
+    },
+    {
+      "id": 1,
+      "share": 0.1875,
+      "hex": "#1ebe6e",
+      "oklch_extraction": [
+        0.7064255475997925,
+        0.16990383013385282,
+        154.38020996186958
+      ]
+    },
+    {
+      "id": 2,
+      "share": 0.1875,
+      "hex": "#6e23af",
+      "oklch_extraction": [
+        0.4497922360897064,
+        0.2039091707238067,
+        302.9618159720555
+      ]
+    },
+    {
+      "id": 3,
+      "share": 0.1875,
+      "hex": "#145fdc",
+      "oklch_extraction": [
+        0.5222796201705933,
+        0.20381745085417474,
+        260.7024203722354
+      ]
+    },
+    {
+      "id": 4,
+      "share": 0.1875,
+      "hex": "#dc1e2d",
+      "oklch_extraction": [
+        0.5734226107597351,
+        0.21868612913870536,
+        24.871483616103
+      ]
+    }
+  ]
+}

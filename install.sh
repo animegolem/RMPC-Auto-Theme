@@ -13,6 +13,7 @@ repo=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 prefix=${RMPC_AUTO_THEME_PREFIX:-"$HOME/.local"}
 cfg_root=${XDG_CONFIG_HOME:-"$HOME/.config"}
 app_cfg="$cfg_root/rmpc-auto-theme/config.toml"
+sample_cfg="$cfg_root/rmpc-auto-theme/sample-config.ron"
 live_cfg="$cfg_root/rmpc/config.ron"
 theme_dir="$cfg_root/rmpc/themes"
 theme_out="$theme_dir/auto-theme.ron"
@@ -29,6 +30,7 @@ cp "$source_bin" "$bin"
 cp "$repo/hook/on_song_change.sh" "$hook"
 chmod 755 "$bin" "$hook"
 if [ ! -e "$app_cfg" ]; then cp "$repo/fixtures/config.toml" "$app_cfg"; fi
+if [ ! -e "$sample_cfg" ]; then cp "$repo/fixtures/sample_config.ron" "$sample_cfg"; fi
 if $wire && [ ! -f "$live_cfg" ]; then
   printf 'install.sh: missing %s\n' "$live_cfg" >&2
   exit 1
@@ -56,6 +58,7 @@ elif [ ! -e "$theme_out" ]; then
 fi
 
 manual() {
+  printf 'Sample rmpc config: %s (copy/edit it; your live config is not replaced)\n' "$sample_cfg"
   printf 'Add these fields to %s:\n  theme: "auto-theme",\n  on_song_change: ["%s"],\n' "$live_cfg" "$hook"
 }
 $wire || { manual; exit 0; }

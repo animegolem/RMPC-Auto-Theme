@@ -10,6 +10,7 @@ use crate::solver::GuardrailFloors;
 #[derive(Debug, Clone, PartialEq)]
 pub struct EffectiveConfig {
     pub base_theme: Option<PathBuf>,
+    pub palette_path: PathBuf,
     pub quality: i8,
     pub osc11: bool,
     pub bands: ToneBands,
@@ -20,6 +21,7 @@ impl Default for EffectiveConfig {
     fn default() -> Self {
         Self {
             base_theme: None,
+            palette_path: default_palette_path(),
             quality: 2,
             osc11: false,
             bands: ToneBands::default(),
@@ -32,6 +34,7 @@ impl Default for EffectiveConfig {
 #[serde(default, deny_unknown_fields)]
 struct FileConfig {
     base_theme: Option<String>,
+    palette_path: Option<String>,
     quality: Option<i8>,
     osc11: Option<bool>,
     bands: FileBands,
@@ -100,6 +103,9 @@ impl EffectiveConfig {
         if let Some(path) = file.base_theme {
             config.base_theme = Some(expand_tilde(&path)?);
         }
+        if let Some(path) = file.palette_path {
+            config.palette_path = expand_tilde(&path)?;
+        }
         if let Some(quality) = file.quality {
             config.quality = quality;
         }
@@ -141,6 +147,7 @@ impl EffectiveConfig {
             .ok_or_else(|| format!("override must be KEY=VALUE: {assignment}"))?;
         match key {
             "base_theme" => self.base_theme = Some(expand_tilde(value)?),
+            "palette_path" => self.palette_path = expand_tilde(value)?,
             "quality" => self.quality = parse(value, key)?,
             "osc11" => self.osc11 = parse(value, key)?,
             _ if key.starts_with("bands.") => self.set_band_value(key, value)?,
@@ -156,6 +163,7 @@ impl EffectiveConfig {
                 .base_theme
                 .as_ref()
                 .map_or_else(String::new, |path| path.display().to_string()),
+            "palette_path" => self.palette_path.display().to_string(),
             "quality" => self.quality.to_string(),
             "osc11" => self.osc11.to_string(),
             _ if key.starts_with("bands.") => self.band_value(key)?.to_string(),
@@ -166,6 +174,12 @@ impl EffectiveConfig {
     }
 
     pub fn validate(&self) -> Result<(), String> {
+        if !self.palette_path.is_absolute() {
+            return Err(format!(
+                "palette_path must be absolute, got {}",
+                self.palette_path.display()
+            ));
+        }
         if let Some(path) = &self.base_theme {
             if !path.is_absolute() {
                 return Err(format!(
@@ -310,6 +324,16 @@ impl EffectiveConfig {
             _ => Err(format!("unknown config key: {key}")),
         }
     }
+}
+
+fn default_palette_path() -> PathBuf {
+    if let Some(root) = std::env::var_os("XDG_CONFIG_HOME") {
+        return PathBuf::from(root).join("rmpc-auto-theme/palette/palette.json");
+    }
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/tmp"))
+        .join(".config/rmpc-auto-theme/palette/palette.json")
 }
 
 fn merge_band(target: &mut ToneBand, source: Option<FileBand>) {
