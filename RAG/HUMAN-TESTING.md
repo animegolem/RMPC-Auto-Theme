@@ -20,3 +20,17 @@ case WAIVED at the keyboard (no convenient artless record in
 rotation); covered by the exit-2 shell-integration test in temp
 HOME. Mid-run kill considered covered by the same suite. One live
 finding filed: DQ-1 / AI-IMP-005 (selection vs playing row).
+
+## IMP-006 owner acceptance queue (added 2026-09-18, RL-owned)
+
+- [ ] Live theme apply: run the publisher against real playback and
+  `rmpc remote set theme -` — visual pass on the v3 base with album
+  colors (cursor vs playing row distinct; severity colors literal;
+  info.fg wearing album accent per rev 0.12).
+- [ ] Hook install + a real listening session: on_song_change wired
+  via the consent flag, several album transitions, no visible
+  latency/flicker complaints; single-flight holds with two instances
+  open if desired.
+- [ ] OSC 11 opt-in: terminal background follows album background
+  when enabled; restores sanely after quit (known non-reverting OSC
+  behavior — see DQ-5 restore-on-exit note).
