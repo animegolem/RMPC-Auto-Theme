@@ -4,6 +4,7 @@ use color_core::analyze::{default_max_samples, AnalyzeRequest, ImageSource};
 
 pub mod config;
 pub mod emit;
+pub mod publisher;
 pub mod roles;
 pub mod solver;
 
@@ -17,6 +18,7 @@ pub struct Generation {
     pub theme: String,
     pub debug: String,
     pub palette: RolePalette,
+    pub clusters: Vec<color_core::ClusterOut>,
     pub patched_paths: Vec<String>,
     pub untouched_paths: Vec<String>,
 }
@@ -62,6 +64,7 @@ pub fn generate_with_config(
         theme: patch.output,
         debug,
         palette,
+        clusters: analysis.clusters,
         patched_paths: patch.patched_paths,
         untouched_paths: patch.untouched_paths,
     })

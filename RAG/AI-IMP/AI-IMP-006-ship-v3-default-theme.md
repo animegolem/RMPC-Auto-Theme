@@ -170,11 +170,11 @@ SPEC.org (via RL).
 Before marking an item complete on the checklist MUST **stop** and **think**. Have you validated all aspects are **implemented** and **tested**? 
 </CRITICAL_RULE>
 
-- [ ] Round-1 genericization proposal + blast radius.
-- [ ] Embedded base + sample config ship; rmpc 0.11 parse-verified.
-- [ ] 34/0 coverage property holds on the shipped base.
-- [ ] Goldens regenerated deliberately; provenance documented.
-- [ ] Hook double-fire root cause traced with evidence; single-
+- [x] Round-1 genericization proposal + blast radius.
+- [x] Embedded base + sample config ship; rmpc 0.11 parse-verified.
+- [x] 34/0 coverage property holds on the shipped base.
+- [x] Goldens regenerated deliberately; provenance documented.
+- [x] Hook double-fire root cause traced with evidence; single-
       flight guard + log discipline landed; concurrent-invocation
       test (two simultaneous runs → one extraction, coherent log).
 - [x] Sixth fixture (achromatic cluster + hue-wrap pair) authored
@@ -182,10 +182,10 @@ Before marking an item complete on the checklist MUST **stop** and **think**. Ha
       settled (ratified predicate, a4435c6) and fixture family
       corrected to match (447975c) — done by RL ahead of the
       sitting.
-- [ ] Addendum-5 producer acceptance cases implemented and tested
+- [x] Addendum-5 producer acceptance cases implemented and tested
       (all-black floor-fail with diagnostics; passing-hex bundle;
       stock-base absent bundle).
-- [ ] Gates green; validate-tickets clean.
+- [x] Gates green; validate-tickets clean.
 
 ### Acceptance Criteria
 
@@ -195,4 +195,19 @@ THEN the emitted document is the v3-derived default fully tinted
 
 ### Issues Encountered
 
-(to be filled during implementation)
+- The initial parent `color-tool-kmeans` path dependency had no
+  post-map/pre-quantization coordinate accessor. The owner re-ruled
+  containment in BRIEF-004 r12: color math is now vendored in this repo
+  at main `92d88c4`, carrying the independently reviewed additive
+  accessor byte-for-byte; the parent app remains out of bounds.
+- Astra found five f32 OKLab→OKLCH re-expression cases where a paired
+  RGB byte changes. BRIEF-004 r13 ruled f64 coordinate fidelity and
+  explicit achromatic serialization, not extraction-to-hex byte
+  roundtrip, as the artifact invariant. The publisher uses that rule
+  and retains two replayable vectors as documentation tests.
+- The committed chromatic fixture has high cluster chroma but exact
+  swatches yield little extraction-versus-hex inverse difference.
+  It is a producer-path capture, not a gamut-boundary proof or live
+  theme application. A separate current-track live MPD capture in
+  scratch produced an `ok` artifact; owner-facing rmpc visuals remain
+  for human testing.

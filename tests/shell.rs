@@ -44,10 +44,6 @@ fn hook_command(sandbox: &Sandbox, album_rc: i32) -> Command {
     executable(
         &fake_rmpc,
         r#"#!/bin/sh
-if [ "$1" = albumart ]; then
-  [ "${ALBUM_RC:-0}" -eq 0 ] && cp "$FAKE_ART" "$3"
-  exit "${ALBUM_RC:-0}"
-fi
 if [ "$1" = remote ]; then cat >"$APPLIED"; printf 'apply\n' >>"$CALLS"; exit "${REMOTE_RC:-0}"; fi
 exit 9
 "#,
@@ -55,14 +51,78 @@ exit 9
     executable(
         &fake_gen,
         r#"#!/bin/sh
-case ${1:-} in
-  --print-config) printf '%s\n' "${OSC11:-false}"; exit 0 ;;
-  --print-base-theme) cat "$BASE_THEME"; exit 0 ;;
+command=$1
+shift
+file=
+token=
+sequence=
+theme_output=
+staged_theme=
+theme=
+while [ "$#" -gt 0 ]; do
+  case $1 in
+    --file) file=$2; shift 2 ;;
+    --token) token=$2; shift 2 ;;
+    --sequence) sequence=$2; shift 2 ;;
+    --theme-output) theme_output=$2; shift 2 ;;
+    --staged-theme) staged_theme=$2; shift 2 ;;
+    --theme) theme=$2; shift 2 ;;
+    *) shift ;;
+  esac
+done
+case $command in
+  --admit-event)
+    old=$(cat "$FAKE_STATE/sequence" 2>/dev/null || printf 0)
+    sequence=$((old + 1))
+    printf '%s\n' "$sequence" >"$FAKE_STATE/sequence"
+    printf 'token-%s\n' "$sequence" >"$FAKE_STATE/token"
+    printf 'token-%s %s\n' "$sequence" "$sequence"
+    ;;
+  --is-current)
+    [ "$(cat "$FAKE_STATE/token" 2>/dev/null)" = "$token" ]
+    ;;
+  --publish-event)
+    printf 'publisher sequence %s file %s\n' "$sequence" "$file" >&2
+    art_hash=$(shasum -a 256 "$FAKE_ART" | awk '{print $1}')
+    if [ "${ALBUM_RC:-0}" -eq 0 ] && [ "$(cat "$FAKE_STATE/cache" 2>/dev/null)" != "$art_hash" ]; then
+      printf 'extract\n' >>"$GEN_CALLS"
+      [ "${GEN_DELAY:-0}" = 0 ] || sleep "$GEN_DELAY"
+      [ "${GEN_FAIL:-0}" -eq 0 ] && printf '%s\n' "$art_hash" >"$FAKE_STATE/cache"
+    fi
+    if [ "$(cat "$FAKE_STATE/token" 2>/dev/null)" != "$token" ]; then
+      printf 'superseded\n'; exit 0
+    fi
+    case ${ALBUM_RC:-0} in
+      0)
+        if [ "${GEN_FAIL:-0}" -ne 0 ]; then
+          printf 'failed %s\n' "$file" >"$FAKE_STATE/palette.json"
+          printf 'failed\n'; exit 0
+        fi
+        cp "$GENERATED_THEME" "$theme_output"
+        printf 'ok %s %s\n' "$sequence" "$file" >"$FAKE_STATE/palette.json"
+        printf 'ok %s\n' "$art_hash"
+        ;;
+      2)
+        cp "$BASE_THEME" "$theme_output"
+        printf 'no-art %s %s\n' "$sequence" "$file" >"$FAKE_STATE/palette.json"
+        printf 'no-art\n'
+        ;;
+      *)
+        printf 'failed %s %s\n' "$sequence" "$file" >"$FAKE_STATE/palette.json"
+        printf 'failed\n'
+        ;;
+    esac
+    ;;
+  --commit-theme)
+    if [ "$(cat "$FAKE_STATE/token" 2>/dev/null)" != "$token" ]; then
+      printf 'superseded\n'; exit 0
+    fi
+    mv "$staged_theme" "$theme"
+    printf 'committed\n'
+    ;;
+  --print-config) printf '%s\n' "${OSC11:-false}" ;;
+  *) exit 9 ;;
 esac
-printf 'generate\n' >>"$GEN_CALLS"
-[ "${GEN_FAIL:-0}" -eq 0 ] || exit 7
-[ "${GEN_DELAY:-0}" -eq 0 ] || sleep "$GEN_DELAY"
-cat "$GENERATED_THEME"
 "#,
     );
     let home = sandbox.path("home");
@@ -84,8 +144,10 @@ cat "$GENERATED_THEME"
         .env("APPLIED", sandbox.path("applied.ron"))
         .env("CALLS", sandbox.path("calls"))
         .env("GEN_CALLS", sandbox.path("gen-calls"))
+        .env("FAKE_STATE", sandbox.path("config/rmpc-auto-theme"))
         .env("ALBUM_RC", album_rc.to_string())
-        .env("PID", "123");
+        .env("PID", "123")
+        .env("FILE", "library/example.flac");
     command
 }
 
@@ -103,15 +165,25 @@ fn seed_themes(sandbox: &Sandbox) {
     .unwrap();
 }
 
+fn wait_for_extraction(sandbox: &Sandbox) {
+    for _ in 0..200 {
+        if sandbox.path("gen-calls").exists() {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    panic!("first hook did not start extraction");
+}
+
 #[test]
-fn hook_short_circuits_same_art_and_applies_atomically() {
+fn hook_republishes_same_art_without_reextracting_or_reapplying() {
     let sandbox = Sandbox::new("same-art");
     seed_themes(&sandbox);
     assert!(hook_command(&sandbox, 0).status().unwrap().success());
     assert!(hook_command(&sandbox, 0).status().unwrap().success());
     assert_eq!(
         fs::read_to_string(sandbox.path("gen-calls")).unwrap(),
-        "generate\n"
+        "extract\n"
     );
     assert_eq!(
         fs::read_to_string(sandbox.path("config/rmpc/themes/auto-theme.ron")).unwrap(),
@@ -120,6 +192,36 @@ fn hook_short_circuits_same_art_and_applies_atomically() {
     assert_eq!(
         fs::read_to_string(sandbox.path("calls")).unwrap(),
         "apply\n"
+    );
+    assert_eq!(
+        fs::read_to_string(sandbox.path("config/rmpc-auto-theme/palette.json"))
+            .unwrap()
+            .split_whitespace()
+            .next(),
+        Some("ok")
+    );
+    let palette = fs::read_to_string(sandbox.path("config/rmpc-auto-theme/palette.json")).unwrap();
+    assert!(palette.starts_with("ok 2 "), "{palette}");
+}
+
+#[test]
+fn matching_hash_does_not_skip_a_different_staged_theme() {
+    let sandbox = Sandbox::new("hash-is-not-theme");
+    seed_themes(&sandbox);
+    assert!(hook_command(&sandbox, 0).status().unwrap().success());
+    fs::write(
+        sandbox.path("generated.ron"),
+        b"(background_color: \"#abcdef\")\n",
+    )
+    .unwrap();
+    assert!(hook_command(&sandbox, 0).status().unwrap().success());
+    assert_eq!(
+        fs::read_to_string(sandbox.path("config/rmpc/themes/auto-theme.ron")).unwrap(),
+        "(background_color: \"#abcdef\")\n"
+    );
+    assert_eq!(
+        fs::read_to_string(sandbox.path("calls")).unwrap(),
+        "apply\napply\n"
     );
 }
 
@@ -132,6 +234,9 @@ fn hook_resets_to_base_on_exit_two_and_clears_hash() {
     fs::write(state.join("art.sha256"), "old").unwrap();
     assert!(hook_command(&sandbox, 2).status().unwrap().success());
     assert!(!state.join("art.sha256").exists());
+    assert!(fs::read_to_string(state.join("palette.json"))
+        .unwrap()
+        .starts_with("no-art 1 "));
     assert_eq!(
         fs::read(sandbox.path("applied.ron")).unwrap(),
         fs::read(sandbox.path("base.ron")).unwrap()
@@ -152,6 +257,11 @@ fn hook_swallows_generator_failure_without_touching_theme() {
     assert!(status.success());
     assert_eq!(fs::read_to_string(theme).unwrap(), "old theme\n");
     assert!(!sandbox.path("calls").exists());
+    assert!(
+        fs::read_to_string(sandbox.path("config/rmpc-auto-theme/palette.json"))
+            .unwrap()
+            .starts_with("failed ")
+    );
 }
 
 #[test]
@@ -199,7 +309,7 @@ fn hook_only_publishes_the_latest_overlapping_event() {
     let mut first = hook_command(&sandbox, 0);
     first.env("GEN_DELAY", "0.3");
     let mut child = first.spawn().unwrap();
-    std::thread::sleep(std::time::Duration::from_millis(80));
+    wait_for_extraction(&sandbox);
     fs::write(sandbox.path("art"), b"new art").unwrap();
     fs::write(
         sandbox.path("generated.ron"),
@@ -216,6 +326,38 @@ fn hook_only_publishes_the_latest_overlapping_event() {
         fs::read_to_string(sandbox.path("calls")).unwrap(),
         "apply\n"
     );
+}
+
+#[test]
+fn simultaneous_same_art_hooks_single_flight_and_keep_logs_attributed() {
+    let sandbox = Sandbox::new("same-art-concurrent");
+    seed_themes(&sandbox);
+    let mut first = hook_command(&sandbox, 0);
+    first.env("GEN_DELAY", "0.3");
+    let mut child = first.spawn().unwrap();
+    wait_for_extraction(&sandbox);
+    assert!(hook_command(&sandbox, 0).status().unwrap().success());
+    assert!(child.wait().unwrap().success());
+
+    assert_eq!(
+        fs::read_to_string(sandbox.path("gen-calls")).unwrap(),
+        "extract\n"
+    );
+    let palette = fs::read_to_string(sandbox.path("config/rmpc-auto-theme/palette.json")).unwrap();
+    assert!(palette.starts_with("ok 2 "), "{palette}");
+    assert_eq!(
+        fs::read_to_string(sandbox.path("calls")).unwrap(),
+        "apply\n"
+    );
+    let log = fs::read_to_string(sandbox.path("config/rmpc-auto-theme/hook.log")).unwrap();
+    assert!(log.contains("publisher sequence 1"));
+    assert!(log.contains("publisher sequence 2"));
+    for line in log.lines() {
+        assert!(
+            line.contains("[hook=") && line.contains(" rmpc=123] "),
+            "{line}"
+        );
+    }
 }
 
 fn install_command(sandbox: &Sandbox, wire: bool) -> Command {

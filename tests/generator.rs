@@ -90,6 +90,24 @@ fn collect_value_diffs(path: &str, left: &ron::Value, right: &ron::Value, out: &
     }
 }
 
+fn normalize_variant_paths(path: String) -> String {
+    // ron::Value exposes newtype enum payloads as one-element sequences;
+    // the span walker reports the source field path without those synthetic
+    // indices. Keep real array indices such as `content[0]` intact.
+    let mut normalized = path;
+    for name in ["state", "artist_and_album", "input_mode"] {
+        normalized = normalized.replace(
+            &format!("components.{name}[0]."),
+            &format!("components.{name}."),
+        );
+    }
+    normalized
+        .replace(".pane[0].", ".pane.")
+        .replace(".kind[0][0].", ".kind.")
+        .replace(".kind[0].", ".kind.")
+        .replace("cava.bar_color[0]", "cava.bar_color")
+}
+
 #[test]
 fn fixture_corpus_is_deterministic_and_meets_bands_and_guardrails() {
     for (name, artwork) in fixtures() {
@@ -166,12 +184,75 @@ fn chromatic_fixture_matches_byte_exact_golden() {
 }
 
 #[test]
+fn shipped_v3_base_has_complete_fixed_coverage_and_tints_governed_chrome() {
+    let generated = generate(&decode_base64(CHROMATIC), DEFAULT_THEME).unwrap();
+    let fixed = generated
+        .patched_paths
+        .iter()
+        .filter(|path| {
+            !path.starts_with("components.")
+                && !path.starts_with("song_table_format[")
+                && *path != "cava.bar_color"
+        })
+        .count();
+    assert_eq!(fixed, 34, "fixed binding coverage changed");
+    assert!(
+        generated.untouched_paths.is_empty(),
+        "{:?}",
+        generated.untouched_paths
+    );
+    for path in [
+        "cava.bar_color",
+        "song_table_format[2].prop.style.fg",
+        "song_table_format[2].prop.default.style.fg",
+        "components.state.content[0].style.fg",
+        "components.state.content[1].style.fg",
+        "components.state.content[2].style.fg",
+        "components.artist_and_album.content[0].style.fg",
+        "components.artist_and_album.content[0].default.style.fg",
+        "components.volume.panes[1].pane.kind.filled_style.fg",
+        "components.volume.panes[1].pane.kind.thumb_style.fg",
+        "components.volume.panes[1].pane.kind.track_style.fg",
+        "components.volume.panes[2].pane.content[0].style.fg",
+        "components.volume.panes[3].pane.content[0].style.fg",
+        "components.states.panes[2].pane.content[1].kind.on_style.fg",
+        "components.states.panes[2].pane.content[1].kind.off_style.fg",
+        "components.states.panes[1].pane.content[0].style.fg",
+        "components.states.panes[2].pane.content[0].style.fg",
+        "components.states.panes[2].pane.content[2].kind.on_style.fg",
+        "components.states.panes[2].pane.content[2].kind.off_style.fg",
+        "components.states.panes[2].pane.content[3].kind.on_style.fg",
+        "components.states.panes[2].pane.content[3].kind.off_style.fg",
+        "components.states.panes[2].pane.content[3].kind.oneshot_style.fg",
+        "components.states.panes[2].pane.content[4].kind.on_style.fg",
+        "components.states.panes[2].pane.content[4].kind.off_style.fg",
+        "components.states.panes[2].pane.content[4].kind.oneshot_style.fg",
+        "components.states.panes[2].pane.content[5].style.fg",
+        "components.input_mode.content[0].kind.replacements[0].replace.style.fg",
+        "components.input_mode.content[0].kind.replacements[0].replace.style.bg",
+        "components.input_mode.content[0].kind.replacements[1].replace.style.fg",
+        "components.input_mode.content[0].kind.replacements[1].replace.style.bg",
+    ] {
+        assert!(
+            generated.patched_paths.contains(&path.to_owned()),
+            "unpatched: {path}"
+        );
+    }
+    assert!(generated.theme.contains("warn: (fg: \"yellow\""));
+    assert!(generated.theme.contains("error: (fg: \"red\""));
+}
+
+#[test]
 fn default_theme_ast_diff_contains_only_governed_color_paths() {
     let generated = generate(&decode_base64(CHROMATIC), DEFAULT_THEME).unwrap();
     let before: ron::Value = ron::de::from_str(DEFAULT_THEME).unwrap();
     let after: ron::Value = ron::de::from_str(&generated.theme).unwrap();
     let mut differences = Vec::new();
     collect_value_diffs("", &before, &after, &mut differences);
+    differences = differences
+        .into_iter()
+        .map(normalize_variant_paths)
+        .collect();
     differences.sort();
 
     assert_eq!(differences, generated.patched_paths);

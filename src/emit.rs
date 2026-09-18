@@ -144,6 +144,41 @@ const BINDINGS: &[Binding] = &[
 
 const LEVEL_BACKGROUND_PATTERN: &str = "level_styles.*.bg";
 
+// DQ-4 paths are intentionally exact: named v3 components are governed, while
+// an arbitrary user component with an identically named style remains intact.
+const CHROME_PATHS: &[&str] = &[
+    "cava.bar_color",
+    "song_table_format[2].prop.style.fg",
+    "song_table_format[2].prop.default.style.fg",
+    "components.state.content[0].style.fg",
+    "components.state.content[1].style.fg",
+    "components.state.content[2].style.fg",
+    "components.artist_and_album.content[0].style.fg",
+    "components.artist_and_album.content[0].default.style.fg",
+    "components.volume.panes[1].pane.kind.filled_style.fg",
+    "components.volume.panes[1].pane.kind.thumb_style.fg",
+    "components.volume.panes[1].pane.kind.track_style.fg",
+    "components.volume.panes[2].pane.content[0].style.fg",
+    "components.volume.panes[3].pane.content[0].style.fg",
+    "components.states.panes[1].pane.content[0].style.fg",
+    "components.states.panes[2].pane.content[0].style.fg",
+    "components.states.panes[2].pane.content[1].kind.on_style.fg",
+    "components.states.panes[2].pane.content[1].kind.off_style.fg",
+    "components.states.panes[2].pane.content[2].kind.on_style.fg",
+    "components.states.panes[2].pane.content[2].kind.off_style.fg",
+    "components.states.panes[2].pane.content[3].kind.on_style.fg",
+    "components.states.panes[2].pane.content[3].kind.off_style.fg",
+    "components.states.panes[2].pane.content[3].kind.oneshot_style.fg",
+    "components.states.panes[2].pane.content[4].kind.on_style.fg",
+    "components.states.panes[2].pane.content[4].kind.off_style.fg",
+    "components.states.panes[2].pane.content[4].kind.oneshot_style.fg",
+    "components.states.panes[2].pane.content[5].style.fg",
+    "components.input_mode.content[0].kind.replacements[0].replace.style.fg",
+    "components.input_mode.content[0].kind.replacements[0].replace.style.bg",
+    "components.input_mode.content[0].kind.replacements[1].replace.style.fg",
+    "components.input_mode.content[0].kind.replacements[1].replace.style.bg",
+];
+
 /// Patch governed color string literals while preserving all other source bytes.
 pub fn patch_theme(base: &str, palette: &RolePalette) -> Result<PatchReport, String> {
     validate_ron(base, "base theme")?;
@@ -208,7 +243,7 @@ struct Findings {
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum TokenKind {
     Ident(String),
-    String,
+    String(String),
     Open(char),
     Close(char),
     Colon,
@@ -241,8 +276,10 @@ fn lex(source: &str) -> Result<Vec<Token>, String> {
             }
             b'"' => {
                 let end = scan_quoted(bytes, index)?;
+                let value = ron::from_str::<String>(&source[index..end])
+                    .map_err(|error| format!("invalid string in base theme: {error}"))?;
                 tokens.push(Token {
-                    kind: TokenKind::String,
+                    kind: TokenKind::String(value),
                     start: index,
                     end,
                 });
@@ -250,8 +287,10 @@ fn lex(source: &str) -> Result<Vec<Token>, String> {
             }
             b'r' if raw_string_hashes(bytes, index).is_some() => {
                 let end = scan_raw_string(bytes, index)?;
+                let value = ron::from_str::<String>(&source[index..end])
+                    .map_err(|error| format!("invalid string in base theme: {error}"))?;
                 tokens.push(Token {
-                    kind: TokenKind::String,
+                    kind: TokenKind::String(value),
                     start: index,
                     end,
                 });
@@ -388,6 +427,7 @@ struct Walker<'a> {
     replacements: Vec<Replacement>,
     states: HashMap<String, PathState>,
     level_children: BTreeSet<String>,
+    variants: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -405,6 +445,7 @@ impl<'a> Walker<'a> {
             replacements: Vec::new(),
             states: HashMap::new(),
             level_children: BTreeSet::new(),
+            variants: Vec::new(),
         }
     }
 
@@ -423,7 +464,7 @@ impl<'a> Walker<'a> {
             return Ok(());
         };
         match &token.kind {
-            TokenKind::String => {
+            TokenKind::String(_) => {
                 let token = token.clone();
                 self.index += 1;
                 self.observe_string(path, token.start, token.end);
@@ -435,7 +476,9 @@ impl<'a> Walker<'a> {
                     self.observe_none(path);
                 }
                 if matches!(self.peek_kind(), Some(TokenKind::Open('('))) {
+                    self.variants.push(identifier.clone());
                     self.walk_group(path, '(', ')')?;
+                    self.variants.pop();
                 }
             }
             TokenKind::Open('(') => self.walk_group(path, '(', ')')?,
@@ -453,6 +496,7 @@ impl<'a> Walker<'a> {
             _ => return Err(format!("internal emitter error: expected `{open}`")),
         }
 
+        let mut array_index = 0;
         while self.index < self.tokens.len() {
             if matches!(self.peek_kind(), Some(TokenKind::Close(actual)) if *actual == close) {
                 self.index += 1;
@@ -464,6 +508,9 @@ impl<'a> Walker<'a> {
                 self.tokens.get(self.index + 1).map(|t| &t.kind),
             ) {
                 (Some(TokenKind::Ident(field)), Some(TokenKind::Colon)) => Some(field.clone()),
+                (Some(TokenKind::String(field)), Some(TokenKind::Colon)) if open == '{' => {
+                    Some(field.clone())
+                }
                 _ => None,
             };
             if let Some(field) = field {
@@ -475,7 +522,14 @@ impl<'a> Walker<'a> {
                 }
                 self.walk_value(&child_path)?;
             } else {
-                self.walk_value(path)?;
+                if open == '[' {
+                    let mut child_path = path.to_vec();
+                    child_path.push(format!("[{array_index}]"));
+                    self.walk_value(&child_path)?;
+                    array_index += 1;
+                } else {
+                    self.walk_value(path)?;
+                }
             }
 
             if self.peek_kind() == Some(&TokenKind::Comma) {
@@ -486,8 +540,8 @@ impl<'a> Walker<'a> {
     }
 
     fn observe_string(&mut self, path: &[String], start: usize, end: usize) {
-        let path = path.join(".");
-        let Some(role) = role_for_path(&path) else {
+        let path = format_path(path);
+        let Some(role) = role_for_path(&path, &self.variants) else {
             return;
         };
         let rgb = self.palette.get(role).rgb;
@@ -500,8 +554,8 @@ impl<'a> Walker<'a> {
     }
 
     fn observe_none(&mut self, path: &[String]) {
-        let path = path.join(".");
-        if role_for_path(&path).is_some() {
+        let path = format_path(path);
+        if role_for_path(&path, &self.variants).is_some() {
             self.states.entry(path).or_insert(PathState::Untouched);
         }
     }
@@ -510,6 +564,11 @@ impl<'a> Walker<'a> {
         for binding in BINDINGS {
             self.states
                 .entry(binding.path.to_owned())
+                .or_insert(PathState::Untouched);
+        }
+        for path in CHROME_PATHS {
+            self.states
+                .entry((*path).to_owned())
                 .or_insert(PathState::Untouched);
         }
         if self.level_children.is_empty() {
@@ -545,18 +604,85 @@ impl<'a> Walker<'a> {
     }
 }
 
-fn role_for_path(path: &str) -> Option<Role> {
-    BINDINGS
-        .iter()
-        .find_map(|binding| (binding.path == path).then_some(binding.role))
-        .or_else(|| {
-            let mut parts = path.split('.');
-            (parts.next() == Some("level_styles")
-                && parts.next().is_some()
-                && parts.next() == Some("bg")
-                && parts.next().is_none())
-            .then_some(Role::Background)
-        })
+fn format_path(parts: &[String]) -> String {
+    let mut path = String::new();
+    for part in parts {
+        if !path.is_empty() && !part.starts_with('[') {
+            path.push('.');
+        }
+        path.push_str(part);
+    }
+    path
+}
+
+fn role_for_path(path: &str, variants: &[String]) -> Option<Role> {
+    // A field name alone is not enough inside an enum payload: only the
+    // governed Slider and Replace variants own these nested style paths.
+    if path.starts_with("components.volume.panes[1].pane.kind.")
+        && !variants.iter().any(|variant| variant == "Slider")
+    {
+        return None;
+    }
+    if path.starts_with("components.input_mode.content[0].kind.replacements[")
+        && !variants.iter().any(|variant| variant == "Replace")
+    {
+        return None;
+    }
+    let component_role = match path {
+        "song_table_format[2].prop.style.fg"
+        | "song_table_format[2].prop.default.style.fg"
+        | "components.state.content[0].style.fg"
+        | "components.state.content[1].style.fg"
+        | "components.state.content[2].style.fg"
+        | "components.artist_and_album.content[0].style.fg"
+        | "components.artist_and_album.content[0].default.style.fg" => Some(Role::HeaderAccent),
+        "cava.bar_color" => variants
+            .iter()
+            .any(|variant| variant == "Single")
+            .then_some(Role::Accent),
+        "components.volume.panes[1].pane.kind.filled_style.fg"
+        | "components.volume.panes[1].pane.kind.thumb_style.fg"
+        | "components.volume.panes[2].pane.content[0].style.fg"
+        | "components.volume.panes[3].pane.content[0].style.fg" => Some(Role::Accent),
+        "components.volume.panes[1].pane.kind.track_style.fg"
+        | "components.states.panes[2].pane.content[0].style.fg"
+        | "components.states.panes[2].pane.content[1].kind.off_style.fg"
+        | "components.states.panes[2].pane.content[2].kind.off_style.fg"
+        | "components.states.panes[2].pane.content[3].kind.off_style.fg"
+        | "components.states.panes[2].pane.content[4].kind.off_style.fg"
+        | "components.states.panes[2].pane.content[5].style.fg"
+        | "components.states.panes[1].pane.content[0].style.fg" => Some(Role::Frame),
+        "components.states.panes[2].pane.content[1].kind.on_style.fg"
+        | "components.states.panes[2].pane.content[2].kind.on_style.fg"
+        | "components.states.panes[2].pane.content[3].kind.on_style.fg"
+        | "components.states.panes[2].pane.content[4].kind.on_style.fg" => Some(Role::HeaderAccent),
+        "components.states.panes[2].pane.content[3].kind.oneshot_style.fg"
+        | "components.states.panes[2].pane.content[4].kind.oneshot_style.fg"
+        | "components.input_mode.content[0].kind.replacements[1].replace.style.bg" => {
+            Some(Role::Accent)
+        }
+        "components.input_mode.content[0].kind.replacements[0].replace.style.bg" => {
+            Some(Role::Active)
+        }
+        "components.input_mode.content[0].kind.replacements[0].replace.style.fg"
+        | "components.input_mode.content[0].kind.replacements[1].replace.style.fg" => {
+            Some(Role::HighlightText)
+        }
+        _ => None,
+    };
+    component_role.or_else(|| {
+        BINDINGS
+            .iter()
+            .find_map(|binding| (binding.path == path).then_some(binding.role))
+            .or_else(|| {
+                let mut parts = path.split('.');
+                (parts.next() == Some("level_styles")
+                    && parts.next().is_some()
+                    && parts.next() == Some("bg")
+                    && parts.next().is_none())
+                .then_some(Role::Background)
+            })
+    })
 }
 
 #[cfg(test)]
@@ -749,5 +875,36 @@ mod tests {
             .output
             .contains("fg: \"component-fg\", bg: \"component-bg\""));
         assert!(report.output.contains("fg: \"#778899\", bg: \"#101112\""));
+    }
+
+    #[test]
+    fn quoted_component_keys_array_indices_and_variant_payloads_are_precise() {
+        let base = r##"(
+            cava: (bar_color: Single("blue")),
+            song_table_format: [(), (), (prop: (style: (fg: "white")))],
+            components: {
+                "state": Pane(Property(content: [
+                    (kind: Text("["), style: (fg: "yellow")),
+                    (kind: Property(Status(StateV2())), style: (fg: "yellow")),
+                ])),
+                "custom": Pane(Property(content: [
+                    (kind: Text("custom"), style: (fg: "yellow")),
+                ])),
+            },
+        )"##;
+        let report = patch_theme(base, &palette()).expect("valid theme");
+        for path in [
+            "cava.bar_color",
+            "song_table_format[2].prop.style.fg",
+            "components.state.content[0].style.fg",
+            "components.state.content[1].style.fg",
+        ] {
+            assert!(report.patched_paths.contains(&path.to_owned()), "{path}");
+        }
+        assert!(report.output.contains("bar_color: Single(\"#214365\")"));
+        assert!(report.output.contains("style: (fg: \"#abcdef\")"));
+        assert!(report
+            .output
+            .contains("Text(\"custom\"), style: (fg: \"yellow\")"));
     }
 }
