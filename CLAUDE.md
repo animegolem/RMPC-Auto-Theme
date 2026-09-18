@@ -20,8 +20,12 @@ from.
 - Cut IMP tickets only after discussing the breakdown with the owner.
 - Rust gates: `cargo fmt --check`, `cargo test`,
   `cargo clippy -- -D warnings`.
-- The color engine lives in `~/git/color-tool-kmeans` (future
-  `color-core` crate). Never copy engine files into this repo.
+- The color engine is VENDORED at `vendor/color-core` (owner-ruled
+  2026-09-18, SPEC rev 0.13; provenance + fork rules in its
+  VENDORED.md). `~/git/color-tool-kmeans` is the parent project this
+  fork came from — NEVER modified by this project's work. No ad-hoc
+  copying of engine files into src/; the vendored crate is the one
+  copy.
 
 ## Related repos
 

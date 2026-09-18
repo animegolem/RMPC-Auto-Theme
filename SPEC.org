@@ -3,7 +3,7 @@
 
 | Status | Revision | Date       |
 |--------+----------+------------|
-| Draft  | 0.12     | 2026-09-18 |
+| Draft  | 0.13     | 2026-09-18 |
 
 This document is the constitution of the project: every design
 decision derives from it, and amendments land here before they land
@@ -78,10 +78,16 @@ hook stays under ~60 lines.
 
 * 4. Extraction engine
 
-The engine is =color-core=: a tauri-free crate carved from
-=~/git/color-tool-kmeans= (workspace member there; consumed here by
-path dependency, later git dependency). Never copy engine files into
-this repo — the v1 copy diverged and rotted (ruled rev 0.1).
+The engine is =color-core=: a tauri-free crate VENDORED at
+=vendor/color-core= (owner-ruled rev 0.13: each repo owns its color
+math; the rev 0.1 path-dependency reach into
+=~/git/color-tool-kmeans= is retired and that project is never
+modified by this one). Provenance, the single recorded divergence
+(the reviewed mapped-coordinate seam) and the fork's rules live in
+=vendor/color-core/VENDORED.md=. The v1 anti-rot law survives in new
+form: no ad-hoc copying of engine files into =src/= — the vendored
+crate is the one copy; re-syncs with the parent are conscious
+re-vendors recorded in VENDORED.md, never silent drift.
 
 Contract (from the parent's current pipeline, which is normative):
 - OKLab-only clustering (k-means++, SoA/SIMD, deterministic seeds).
@@ -349,6 +355,7 @@ tabs belong in config.ron; the tab bar hides by omitting
 
 | rev | date       | change |
 |-----+------------+--------|
+| 0.13 | 2026-09-18 | Owner ruling: color math pulled into this repo — color-core VENDORED at vendor/color-core (base 5baa20e + the reviewed additive mapped-coordinate seam, file SHA256 f396bbac…d4d8a3; two exhaustive independent sweeps prove math unaltered; Astra independent review + RL final review). §4 rewritten: path dependency on ~/git/color-tool-kmeans retired, parent app never modified by this project (the earlier canonical-landing attempt was reverted pristine, nothing committed there). No-ad-hoc-copy law retained; VENDORED.md governs re-syncs. Gates on vendored wiring: rmpc-theme-gen 37/0, vendored crate 27/0, fmt/clippy clean. |
 | 0.12 | 2026-09-18 | IMP-006 stop, severity-exemption scope fixed (§6): exemption = severity-SIGNALING foregrounds only (error/warn/debug/trace .fg stay literal); info.fg is neutral chrome and maps to accent per the binding table (album-table-white precedent); all level bg's map to background. Binding table, emit.rs mapping and 34/0 count STAND unchanged; only the rev 0.11 prose overreach is corrected. No-art corollary: base info.fg is a legitimate accent source in the fully-hex no-art bundle precisely because info.fg is the accent-bearing chrome slot. Ruling: carrier brief-004-imp-006 r7. |
 | 0.11 | 2026-09-17 | BRIEF-004 round-1 rulings: shipped default base = genericized v3 pair with sample config (§6); DQ-4 role table ratified with severity-color exemption (semantic colors stay literal); art acquisition file-addressed by admitted identity (§7 fence); no-art THEME path unchanged (stock base) while the ENVELOPE shape (roles present iff hex-resolvable) is a proposed contract amendment with grisaille (r14), not yet law. Verdict: RAG/reviews/BRIEF-004-round-1-verdict.md. |
 | 0.10 | 2026-09-08 | Owner visual pass on IMP-005: assignment REVERSED — the playing row wears the lighter derived selection, the cursor the darker active (§6 swap of current/highlighted item bg). Solver unchanged: highlight text was already verified against both backgrounds. |

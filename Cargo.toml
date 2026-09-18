@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-color-core = { path = "../color-tool-kmeans/color-core" }
+color-core = { path = "vendor/color-core" }
 ron = "0.12"
 serde = { version = "1", features = ["derive"] }
 toml = "0.9"

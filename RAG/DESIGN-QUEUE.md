@@ -329,3 +329,13 @@ quantize(exposed) == paired bytes across in-gamut/neutral/compression
 incl. boundary epsilon; CC BY 3.0 attribution travels; pinned-clone
 workflow per the 5baa20e precedent; Astra independent review + RL
 final review; reviewed patch lands under this recorded authorization.
+
+color-core VENDORED (owner, 2026-09-18): "silly vibecode from almost
+1.5 years ago… let's properly pull the color math into both repos" —
+the rev 0.1 path dependency was the root cause of the seam knot (the
+theming engine could not touch its own color internals without
+editing the owner's app). Resolution: vendor/color-core (pinned clone
+promoted, carrying the reviewed seam), Cargo.toml flipped, parent
+untouched (earlier canonical working-tree change reverted pristine).
+Grisaille side: nothing to do — its color math is already
+self-contained TypeScript in src/palette-contract.ts. SPEC rev 0.13.
