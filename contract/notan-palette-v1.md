@@ -89,7 +89,13 @@ log. Unknown `verified_pairs[].kind` → ignore that entry only.
 Canonical keys: background, text, accent, active, highlight_text,
 frame, header_accent, inactive, selection. A role is PRESENT with
 full data or ABSENT; never null. `inactive` always present, always
-`{alias_of: "frame"}` + its color data. `selection` carries
+`{alias_of: "frame"}` + its color data. Alias exactness (addendum A3,
+ratified 2026-09-18 on the RGB-bytes reading): an alias role's `hex`
+MUST resolve to final RGB bytes identical to its source role's, and
+its numeric OKLCH values MUST be identical to the source's. Hex
+comparison is case-insensitive; JSON string spelling is not normative.
+Per-role numeric tolerance governs derived values and NEVER applies to
+alias copies — alias divergence at any magnitude is a producer defect. `selection` carries
 `kind: "derived", derived_from: "active"`. "Always present" for
 `inactive` is scoped to the EMITTED role bundle — an absent-bundle
 `no-art` artifact carries no roles at all. Role `oklch` is COMPUTED
@@ -106,6 +112,29 @@ Reference conversion: sRGB (IEC 61966-2-1 EOTF, D65) → OKLab per
 Björn Ottosson's published matrices (the same conversion the
 fixtures were generated with); OKLCH is its cylindrical form,
 H in degrees [0, 360).
+
+## Provenance and structure (addendum A4, ratified 2026-09-18)
+
+`kind`, `derived_from` and `alias_of` are STRUCTURAL role-model
+constants — they state what a role IS in the model, never how a
+particular run manufactured its bytes. They are emitted verbatim and
+are not provenance claims.
+
+Provenance lives in two role-level fields:
+- `origin` — REQUIRED on every non-alias role; a truthful,
+  informative string with open vocabulary (`synthetic-fixture`,
+  `stock-base`, solver-run forms such as
+  `derived:selection(active)`). Consumers MUST ignore unknown values.
+- `tier` — OPTIONAL on non-alias roles; present IF AND ONLY IF a
+  solver tier actually applied, omitted otherwise (omission is the
+  honest shape; a producer MUST NOT invent a tier). When present it
+  is a string; consumers MUST accept its absence and MUST ignore
+  unknown values.
+
+Alias roles (`inactive`) carry NEITHER `origin` NOR `tier`: an alias
+is a copy, and its provenance is its source role's. Nothing
+load-bearing may hang on `origin` or `tier` — they are audit truth,
+not behavior switches.
 
 ## Clusters
 
@@ -149,14 +178,21 @@ Discriminated by `kind`:
 - `{"kind":"delta_l","roles":[a,b],"floor","measured"}` — OKLab L
   difference (a minus b) on final bytes, 6 decimals.
 The list is the COMPLETE guarantee; nothing outside it is claimed,
-including compositions of listed pairs. Required in `ok`; in
+including compositions of listed pairs. This holds when the list is
+EMPTY: an empty list means no pair guarantees, and consumers MUST NOT
+infer unlisted pairs or floors (addendum A2, ratified 2026-09-18). Required in `ok`; in
 `no-art`, present exactly when the role bundle is emitted (see the
 emission predicate — when a no-art palette is expressible in
 bytes AND meets its floors, it is verified; otherwise the
 artifact stays silent instead of inventing). The six contrast
 pairs + the selection/active delta_l, whenever `selection` is in
 `features`; `features` omits the selection capability whenever no
-selection role is emitted.
+selection role is emitted. Scope of that rule (addendum A1, ratified
+2026-09-18): it binds EMITTED bundles through the no-art emission
+predicate. On `failed` envelopes, `features` advertises the attempted
+producer's capability set and carries no emission guarantee. No
+reverse implication is imposed on `ok` bundles: a selection role not
+advertised in `features` remains acceptable.
 
 ## Non-goals (v1)
 
