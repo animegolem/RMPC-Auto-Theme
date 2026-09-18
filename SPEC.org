@@ -3,7 +3,7 @@
 
 | Status | Revision | Date       |
 |--------+----------+------------|
-| Draft  | 0.11     | 2026-09-17 |
+| Draft  | 0.12     | 2026-09-18 |
 
 This document is the constitution of the project: every design
 decision derives from it, and amendments land here before they land
@@ -211,11 +211,18 @@ CIELAB-era values; v2 measures hue in OKLch).
   NORMAL (active bg + highlight_text fg), INSERT (accent bg +
   highlight_text fg), separator rule and label (frame); slider and
   cava =bar_color= styles are materialized before mapping; album
-  table style is mapped. EXEMPTION: level severity colors stay
-  literal — they are semantic (the color is the signal; an
-  error-red rethemed to album-amber stops meaning error). The DQ-4
-  law reads: no literal CHROME color survives a full retheme;
-  semantic severity colors are exempt by this ruling.
+  table style is mapped. EXEMPTION (scope fixed rev 0.12): the
+  SEVERITY-SIGNALING level foregrounds — =error=, =warn=, =debug=,
+  =trace= =.fg= — stay literal: they are semantic (the color is the
+  signal; an error-red rethemed to album-amber stops meaning error,
+  and debug/trace dimness is de-emphasis, which album accent would
+  invert). =info.fg= is NOT exempt: info is the neutral level, its
+  foreground carries no severity convention — it is chrome text
+  color (the album-table-white precedent) and maps to accent per
+  the binding table. All =level_styles.*.bg= map to background
+  (chrome). The DQ-4 law reads: no literal CHROME color survives a
+  full retheme; severity-signaling foregrounds are exempt by this
+  ruling.
 - Patching mechanics (rev 0.3): serde round-tripping is FORBIDDEN as
   the emission path — ron 0.12 re-serialization drops pragmas,
   reorders content, expands defaults, and cannot preserve comments
@@ -342,6 +349,7 @@ tabs belong in config.ron; the tab bar hides by omitting
 
 | rev | date       | change |
 |-----+------------+--------|
+| 0.12 | 2026-09-18 | IMP-006 stop, severity-exemption scope fixed (§6): exemption = severity-SIGNALING foregrounds only (error/warn/debug/trace .fg stay literal); info.fg is neutral chrome and maps to accent per the binding table (album-table-white precedent); all level bg's map to background. Binding table, emit.rs mapping and 34/0 count STAND unchanged; only the rev 0.11 prose overreach is corrected. No-art corollary: base info.fg is a legitimate accent source in the fully-hex no-art bundle precisely because info.fg is the accent-bearing chrome slot. Ruling: carrier brief-004-imp-006 r7. |
 | 0.11 | 2026-09-17 | BRIEF-004 round-1 rulings: shipped default base = genericized v3 pair with sample config (§6); DQ-4 role table ratified with severity-color exemption (semantic colors stay literal); art acquisition file-addressed by admitted identity (§7 fence); no-art THEME path unchanged (stock base) while the ENVELOPE shape (roles present iff hex-resolvable) is a proposed contract amendment with grisaille (r14), not yet law. Verdict: RAG/reviews/BRIEF-004-round-1-verdict.md. |
 | 0.10 | 2026-09-08 | Owner visual pass on IMP-005: assignment REVERSED — the playing row wears the lighter derived selection, the cursor the darker active (§6 swap of current/highlighted item bg). Solver unchanged: highlight text was already verified against both backgrounds. |
 | 0.9 | 2026-09-08 | §1 identity statement: event-based retheme engine (whole-document-over-IPC per player event; layout reconfiguration in scope by construction). DQ-2 banked (reactive lyrics layout). No behavioral change. |
