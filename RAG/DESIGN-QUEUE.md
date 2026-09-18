@@ -247,6 +247,18 @@ colors. Steward's proposed ruling, additive and non-breaking
   headroom, and 8-bit rounding mode; pinning all three would be a
   lot of normative text protecting nothing a consumer can observe
   in isolation.
+  CORRECTION 2026-09-18 (reported by the termviz seat against its
+  own earlier evidence; adopted by RL): the divergence exhibit that
+  accompanied this rationale — termviz #007872 vs RMPC #00736e "from
+  the same instruction" — was an OPERATION MISMATCH, not
+  under-determination: termviz was performing per-channel RGB clamp,
+  not the chroma-clip instruction at all. Recomputed at midpoint
+  (0.5, 0.12, 190): chroma-clip const-L/H reproduces RMPC's #00736e
+  byte-for-byte; the same clip with 0.97 headroom gives #0c726e. The
+  DEMOTION STANDS — headroom is demonstrated as a genuine free
+  parameter by that #00736e/#0c726e row, which replaces the withdrawn
+  two-hex exhibit as the supporting evidence; tolerance and rounding
+  mode remain plausible but are no longer claimed as demonstrated.
 - The achromatic policy binds ALL operations on hue, not only
   emission (termviz's framing, adopted 2026-09-17 after both
   co-authors' verifiers independently missed it in one script
