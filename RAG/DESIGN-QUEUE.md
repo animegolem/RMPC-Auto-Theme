@@ -315,3 +315,17 @@ the STOCK DEFAULT palette, not an achromatic set — "just the stock
 terminal theme is sane." The contract's word "neutral" amends to
 stock-default language at ratification (in Astra's bundle);
 no-art.json regenerates from the frozen v3 default in IMP-006.
+
+color-core additive API AUTHORIZED (owner, 2026-09-18, in
+conversation at the home seat): the sibling change may proceed,
+CONSTRAINED — contained to RMPC-Auto-Theme/grisaille needs, and the
+original project's color math is NOT altered. Expose the
+post-gamut-mapping pre-quantization value that
+oklab_to_srgb8_gamut_mapped already computes; never modify the
+mapping. Proof gates (carrier brief-004 r11, event 3be310afcc562bc4):
+full 16,777,216-triple sweep pre/post with zero changed bytes on all
+existing routes; existing crate tests untouched and green; invariant
+quantize(exposed) == paired bytes across in-gamut/neutral/compression
+incl. boundary epsilon; CC BY 3.0 attribution travels; pinned-clone
+workflow per the 5baa20e precedent; Astra independent review + RL
+final review; reviewed patch lands under this recorded authorization.
