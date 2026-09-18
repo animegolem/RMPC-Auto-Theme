@@ -339,3 +339,20 @@ promoted, carrying the reviewed seam), Cargo.toml flipped, parent
 untouched (earlier canonical working-tree change reverted pristine).
 Grisaille side: nothing to do — its color math is already
 self-contained TypeScript in src/palette-contract.ts. SPEC rev 0.13.
+
+Pending contract addenda queue (notan-palette/1, folds ratify with
+Astra at the next digest window; rulings bind now, prose follows —
+the A4 lesson, applied):
+- A5 — metadata absence: unavailable artist/album/title OMITTED,
+  never null; null stays per-field contract grant (file, art_sha256).
+  Ruled brief-004 r10.
+- A6 — sub-threshold display: C < 1e-4 renders achromatic (C
+  treated as 0) at display/byte emission; interpolation arithmetic
+  keeps real C. Ruled in the termviz A6 sitting (reference
+  implementation termviz 44c00bf).
+- A7 — extraction serialization: oklch_extraction = f64 chart-change
+  of the f32 mapped candidate; achromatic policy binds
+  serialization; fixture-class precision; extraction-to-byte
+  reprojection is explicitly NOT a conformance check. Ruled
+  brief-004 r13 (Astra's five 1-byte vectors retained as
+  may-differ documentation tests).
