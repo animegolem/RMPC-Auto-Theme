@@ -62,10 +62,12 @@ destructive-op fence.
   review the branch diff, merge to main yourself. You alone delete
   branches, clones, and `ci/*`.
 - Standing rulings: the Code Lead (Sol, Codex) never copies engine
-  code from `color-tool-kmeans`; `.archive/` v1 is port-from
-  reference only for the guardrail/solver shapes named in
-  AI-IMP-002. Changes to `color-core` itself go through that repo's
-  own process, not this channel.
+  files into `src/` — the vendored crate at `vendor/color-core` is
+  the one copy, and changes to it go through THIS court's normal
+  brief/review process like any other code (SPEC rev 0.13 superseded
+  the old route-to-parent rule; the parent app is never touched).
+  `.archive/` v1 is port-from reference only for the guardrail/solver
+  shapes named in AI-IMP-002.
 
 Decompression: the standing free-time grant in `~/.claude/CLAUDE.md`
 applies here.
