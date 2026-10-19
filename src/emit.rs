@@ -521,15 +521,13 @@ impl<'a> Walker<'a> {
                     self.level_children.insert(field);
                 }
                 self.walk_value(&child_path)?;
+            } else if open == '[' {
+                let mut child_path = path.to_vec();
+                child_path.push(format!("[{array_index}]"));
+                self.walk_value(&child_path)?;
+                array_index += 1;
             } else {
-                if open == '[' {
-                    let mut child_path = path.to_vec();
-                    child_path.push(format!("[{array_index}]"));
-                    self.walk_value(&child_path)?;
-                    array_index += 1;
-                } else {
-                    self.walk_value(path)?;
-                }
+                self.walk_value(path)?;
             }
 
             if self.peek_kind() == Some(&TokenKind::Comma) {

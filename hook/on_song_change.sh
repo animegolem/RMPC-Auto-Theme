@@ -5,7 +5,14 @@ case ${HOME:-} in /*) ;; *) exit 0 ;; esac
 cfg_root=${XDG_CONFIG_HOME:-"$HOME/.config"}
 state_dir=${RMPC_AUTO_THEME_STATE:-"$cfg_root/rmpc-auto-theme"}
 theme=${RMPC_AUTO_THEME_OUTPUT:-"$cfg_root/rmpc/themes/auto-theme.ron"}
-gen=${RMPC_THEME_GEN:-"$HOME/.local/bin/rmpc-theme-gen"}
+# Generator lookup: an explicit override is honored as given; otherwise the
+# user install, then PATH (package installs put the binary in /usr/bin).
+if [ -n "${RMPC_THEME_GEN:-}" ]; then
+  gen=$RMPC_THEME_GEN
+else
+  gen="$HOME/.local/bin/rmpc-theme-gen"
+  [ -x "$gen" ] || gen=$(command -v rmpc-theme-gen 2>/dev/null) || exit 0
+fi
 rmpc=${RMPC_BIN:-rmpc}
 log_file=${RMPC_AUTO_THEME_LOG:-"$state_dir/hook.log"}
 tty=${RMPC_AUTO_THEME_TTY:-/dev/tty}
