@@ -1,0 +1,1 @@
+hook/on_song_change.sh
