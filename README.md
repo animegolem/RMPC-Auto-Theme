@@ -42,6 +42,30 @@ until you explicitly enable it. It includes Now Playing, Library, Lyrics, and
 Search tabs with keys 1–4. Edit paths and keybinds for your setup; there are no
 owner-specific paths in the sample.
 
+### Install from the AUR
+
+On Arch Linux, the community-maintained
+[rmpc-auto-theme-git](https://aur.archlinux.org/packages/rmpc-auto-theme-git)
+package builds from this repository and installs:
+
+- `/usr/bin/rmpc-theme-gen`
+- `/usr/share/rmpc-auto-theme/on_song_change.sh`
+
+The package does not run `install.sh`, so it never touches your rmpc
+configuration and installs no config files; the generator falls back to its
+built-in default theme until you create
+`~/.config/rmpc-auto-theme/config.toml`. Wire the hook yourself by adding
+these fields to `~/.config/rmpc/config.ron`:
+
+```text
+theme: "auto-theme",
+on_song_change: ["/usr/share/rmpc-auto-theme/on_song_change.sh"],
+```
+
+The hook finds `rmpc-theme-gen` on your `PATH` and writes the generated theme
+to `~/.config/rmpc/themes/auto-theme.ron`. To start from a theme other than
+the built-in default, set `base_theme` in `config.toml` as described below.
+
 ### Enable the optional Cava pane
 
 The sample's Cava pane and input stanza are commented out. On macOS, rmpc's
