@@ -148,6 +148,32 @@ Malformed files and unknown keys make direct generator invocations fail with an
 error. The song-change hook records the error and exits successfully so theming
 cannot interrupt playback.
 
+### Supply art from your own scripts
+
+Songs that rmpc adds through yt-dlp retheme without extra configuration:
+rmpc embeds the video thumbnail in the downloaded file, and the generator
+reads embedded art through MPD even for songs outside the music directory.
+
+For art sources that MPD cannot see at all, set `art_fallback_command`. The
+generator runs it with `/bin/sh -c` only after MPD reports no art for the
+current song, with the song's path or URI in the `FILE` environment variable.
+Print the artwork bytes to standard output:
+
+```toml
+art_fallback_command = "~/.config/rmpc-auto-theme/find-art.sh"
+```
+
+```sh
+#!/bin/sh
+# find-art.sh: print art bytes for $FILE, or nothing.
+thumb="${FILE%.*}.jpg"
+[ -f "$thumb" ] && exec cat "$thumb"
+```
+
+The command must finish within 10 seconds and print at most 32 MiB. If it
+exits nonzero, prints nothing, or exceeds either limit, theming falls back to
+the stock base theme exactly as if the song had no art.
+
 ## Generate a theme directly
 
 Pass encoded artwork on standard input. The complete theme is written to
