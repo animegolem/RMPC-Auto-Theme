@@ -9,19 +9,6 @@ The generator, hook, configuration, installer, and `notan-palette/1` publisher
 are implemented. Automated tests cover generation and failure behavior; the
 owner-run macOS playback smoke test remains a separate acceptance gate.
 
-## See it in action
-
-![rmpc retheming live as the queue advances through three public-domain
-recordings](docs/demo.gif)
-
-Each track's cover drives the palette — here three public-domain paintings
-embedded as album art in 1910s–20s recordings from the Internet Archive:
-
-| *The Fighting Temeraire* (Turner) | *The Great Wave* (Hokusai) | *The Starry Night* (van Gogh) |
-|:---:|:---:|:---:|
-| ![Warm red palette source](docs/cover-fighting-temeraire.jpg) | ![Sea-green palette source](docs/cover-great-wave.jpg) | ![Blue palette source](docs/cover-starry-night.jpg) |
-| Celeste Aïda — Caruso (1911) | Aloha ʻOe — Ferrera & Franchini (1920) | Granadinas — Schipa (1922) |
-
 ## Requirements
 
 - macOS or Linux with a POSIX shell
