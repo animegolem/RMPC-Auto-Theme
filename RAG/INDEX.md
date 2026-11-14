@@ -34,7 +34,7 @@ Generated from tracked files; binary assets excluded.
 
 ### > 600 LOC
 
-- src/publisher.rs (1138 LOC)
+- src/publisher.rs (1192 LOC)
 - RAG/scripts/carrier.py (1060 LOC)
 - Cargo.lock (958 LOC)
 - src/solver.rs (927 LOC)
