@@ -1,6 +1,8 @@
 # rmpc-auto-theme configuration. Omitted keys retain these defaults.
 quality = 2
 osc11 = false
+# Run a command for art when MPD has none (stdout = art bytes, $FILE = song).
+# art_fallback_command = "~/.config/rmpc-auto-theme/find-art.sh"
 
 [bands.background]
 target = 0.13

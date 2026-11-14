@@ -10,7 +10,7 @@
 | Planned | 0 | 1 |
 | Deferred | 0 | 0 |
 | Cancelled | 0 | 0 |
-| Completed | 0 | 5 |
+| Completed | 0 | 6 |
 | **Total** | **1** | **7** |
 
 ## In Progress
@@ -28,21 +28,14 @@
 
 ---
 
-## Anomalies
-
-### Orphaned IMPs (no epic dependency)
-- [[AI-IMP-007-art-fallback-command|IMP-007]] — in-progress, no epic dependency found
-
----
-
 ## Size Watch
 
 Generated from tracked files; binary assets excluded.
 
 ### > 600 LOC
 
+- src/publisher.rs (1138 LOC)
 - RAG/scripts/carrier.py (1060 LOC)
-- src/publisher.rs (1020 LOC)
 - Cargo.lock (958 LOC)
 - src/solver.rs (927 LOC)
 - src/emit.rs (908 LOC)
@@ -56,7 +49,7 @@ Generated from tracked files; binary assets excluded.
 - tests/publisher.rs (596 LOC)
 - vendor/color-core/src/kmeans.rs (581 LOC)
 - RAG/scripts/generate-index.sh (575 LOC)
-- src/config.rs (485 LOC)
+- src/config.rs (521 LOC)
 - tests/shell.rs (443 LOC)
 - tests/generator.rs (435 LOC)
 - SPEC.org (392 LOC)

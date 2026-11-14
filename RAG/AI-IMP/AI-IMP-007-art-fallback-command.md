@@ -6,12 +6,12 @@ tags:
   - publisher
   - config
   - userspace-primitive
-kanban_status: in-progress
+kanban_status: completed
 depends_on:
 parent_epic:
 confidence_score: 0.9
 date_created: 2026-11-14
-date_completed:
+date_completed: 2026-11-14
 ---
 
 # AI-IMP-007-art-fallback-command
@@ -74,14 +74,14 @@ fits; otherwise unit coverage of the helper.
 Before marking an item complete on the checklist MUST **stop** and **think**. Have you validated all aspects are **implemented** and **tested**?
 </CRITICAL_RULE>
 
-- [ ] `src/config.rs`: add `art_fallback_command: Option<String>` to EffectiveConfig (default None), FileConfig, merge, `apply_override`, `print_value`; `validate` rejects empty/whitespace-only values.
-- [ ] `src/publisher.rs`: add `run_art_fallback(command, file) -> Option<Vec<u8>>` — `/bin/sh -c`, env FILE, stdin null, stdout piped, 10 s poll-and-kill timeout, MAX_ART_BYTES cap, stderr note on every degrade path.
-- [ ] `src/publisher.rs`: call the fallback in `publish_event` when `mpd.art()` yields None and the key is set; Some(bytes) proceeds through the existing generate path unchanged.
-- [ ] Tests: config plumbing (file key, --set, --print-config, empty-value rejection).
-- [ ] Tests: fallback helper — success bytes, nonzero exit → None, empty stdout → None, timeout kill → None, oversize → None.
-- [ ] `fixtures/config.toml` + `README.md`: document the key with a yt-dlp-flavored example script.
-- [ ] Gates: `cargo fmt --check && cargo clippy -- -D warnings && cargo test` all green.
-- [ ] `RAG/scripts/generate-index.sh` run; INDEX.md committed with the ticket.
+- [x] `src/config.rs`: add `art_fallback_command: Option<String>` to EffectiveConfig (default None), FileConfig, merge, `apply_override`, `print_value`; `validate` rejects empty/whitespace-only values.
+- [x] `src/publisher.rs`: add `run_art_fallback(command, file) -> Option<Vec<u8>>` — `/bin/sh -c`, env FILE, stdin null, stdout piped, 10 s poll-and-kill timeout, MAX_ART_BYTES cap, stderr note on every degrade path.
+- [x] `src/publisher.rs`: call the fallback in `publish_event` when `mpd.art()` yields None and the key is set; Some(bytes) proceeds through the existing generate path unchanged.
+- [x] Tests: config plumbing (file key, --set, --print-config, empty-value rejection).
+- [x] Tests: fallback helper — success bytes, nonzero exit → None, empty stdout → None, timeout kill → None, oversize → None.
+- [x] `fixtures/config.toml` + `README.md`: document the key with a yt-dlp-flavored example script.
+- [x] Gates: `cargo fmt --check && cargo clippy -- -D warnings && cargo test` all green.
+- [x] `RAG/scripts/generate-index.sh` run; INDEX.md committed with the ticket.
 
 ### Acceptance Criteria
 
@@ -100,4 +100,16 @@ no-art envelope and base theme, exit 0.
 
 ### Issues Encountered
 
-<!-- Fill honestly as work proceeds. -->
+- `std` has no `wait_timeout`, so the 10 s bound is a poll-and-kill
+  loop (50 ms cadence) with a dedicated reader thread so a chatty
+  child cannot deadlock on a full pipe. The timeout is parameterized
+  (`run_art_fallback_bounded`) so the kill-at-deadline test runs in
+  200 ms instead of 10 s.
+- `cargo fmt` reflowed one test assertion; no logic changes.
+- Acceptance ran on the live sandbox rig: the generator reads its
+  config via `XDG_CONFIG_HOME`, which the test wrapper had to export
+  (first attempt invented a nonexistent `RMPC_THEME_GEN_FLAGS` env;
+  no such seam exists, and none was added).
+- Shell e2e coverage lives as unit tests on the helper plus the live
+  rig run rather than a new `tests/shell.rs` case; the existing
+  shell harness exercises the hook, which this change does not touch.

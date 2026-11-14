@@ -337,10 +337,16 @@ pub fn publish_event(
         }
         Err(error) => eprintln!("publisher: metadata unavailable for admitted FILE: {error}"),
     }
-    let art = match mpd.art(file) {
+    let mut art = match mpd.art(file) {
         Ok(art) => art,
         Err(error) => return failed(config, admission, track, error),
     };
+    if art.is_none() {
+        if let Some(command) = config.art_fallback_command.as_deref() {
+            art = run_art_fallback(command, file);
+        }
+    }
+    let art = art;
     match art {
         Some(bytes) => {
             let hash = format!("{:x}", Sha256::digest(&bytes));
@@ -416,6 +422,83 @@ pub fn publish_event(
             }
         }
     }
+}
+
+/// Bounds for the userspace art fallback hook (SPEC §7 rev 0.14).
+const ART_FALLBACK_TIMEOUT: Duration = Duration::from_secs(10);
+const ART_FALLBACK_POLL: Duration = Duration::from_millis(50);
+
+/// Run the user-configured fallback command with FILE in its environment and
+/// take its stdout as art bytes. Every failure (spawn error, nonzero exit,
+/// empty stdout, timeout, size cap) degrades to None — the no-art path.
+fn run_art_fallback(command: &str, file: &str) -> Option<Vec<u8>> {
+    run_art_fallback_bounded(command, file, ART_FALLBACK_TIMEOUT)
+}
+
+fn run_art_fallback_bounded(command: &str, file: &str, timeout: Duration) -> Option<Vec<u8>> {
+    let degrade = |reason: String| {
+        eprintln!("publisher: art fallback degraded to no-art: {reason}");
+        None
+    };
+    let mut child = match Command::new("/bin/sh")
+        .arg("-c")
+        .arg(command)
+        .env("FILE", file)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+    {
+        Ok(child) => child,
+        Err(error) => return degrade(format!("spawn: {error}")),
+    };
+    let stdout = child.stdout.take().expect("stdout was requested piped");
+    let reader = std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        // Read one byte past the cap so an oversize stream is distinguishable.
+        let result = stdout
+            .take(MAX_ART_BYTES as u64 + 1)
+            .read_to_end(&mut bytes);
+        (result, bytes)
+    });
+    let deadline = std::time::Instant::now() + timeout;
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break Some(status),
+            Ok(None) => {
+                if std::time::Instant::now() >= deadline {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    break None;
+                }
+                std::thread::sleep(ART_FALLBACK_POLL);
+            }
+            Err(error) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return degrade(format!("wait: {error}"));
+            }
+        }
+    };
+    let (read_result, bytes) = match reader.join() {
+        Ok(output) => output,
+        Err(_) => return degrade("stdout reader panicked".to_owned()),
+    };
+    let Some(status) = status else {
+        return degrade(format!("timed out after {} ms", timeout.as_millis()));
+    };
+    if let Err(error) = read_result {
+        return degrade(format!("read stdout: {error}"));
+    }
+    if !status.success() {
+        return degrade(format!("exit status {status}"));
+    }
+    if bytes.is_empty() {
+        return degrade("command printed no bytes".to_owned());
+    }
+    if bytes.len() > MAX_ART_BYTES {
+        return degrade(format!("stdout exceeds {MAX_ART_BYTES} bytes"));
+    }
+    Some(bytes)
 }
 
 fn failed(
@@ -965,6 +1048,41 @@ mod tests {
             },
             hsv: [0.0; 3],
         }
+    }
+
+    #[test]
+    fn art_fallback_returns_stdout_bytes_with_file_in_env() {
+        let art = run_art_fallback("printf 'art:%s' \"$FILE\"", "/cache/song.opus")
+            .expect("successful command yields bytes");
+        assert_eq!(art, b"art:/cache/song.opus");
+    }
+
+    #[test]
+    fn art_fallback_degrades_on_failure_and_empty_output() {
+        assert_eq!(run_art_fallback("exit 3", "f"), None);
+        assert_eq!(run_art_fallback("true", "f"), None);
+        assert_eq!(run_art_fallback("printf x >&2", "f"), None);
+    }
+
+    #[test]
+    fn art_fallback_kills_a_hung_command_at_the_deadline() {
+        let started = std::time::Instant::now();
+        let art = run_art_fallback_bounded("sleep 30", "f", Duration::from_millis(200));
+        assert_eq!(art, None);
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "hung child must be killed at the deadline, not awaited"
+        );
+    }
+
+    #[test]
+    fn art_fallback_rejects_output_over_the_art_cap() {
+        // Emit MAX_ART_BYTES + 1 zero bytes; the reader stops at cap + 1.
+        let command = format!("head -c {} /dev/zero", MAX_ART_BYTES + 1);
+        assert_eq!(run_art_fallback(&command, "f"), None);
+        let command = format!("head -c {MAX_ART_BYTES} /dev/zero");
+        let art = run_art_fallback(&command, "f").expect("exactly the cap is accepted");
+        assert_eq!(art.len(), MAX_ART_BYTES);
     }
 
     #[test]

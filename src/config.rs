@@ -13,6 +13,7 @@ pub struct EffectiveConfig {
     pub palette_path: PathBuf,
     pub quality: i8,
     pub osc11: bool,
+    pub art_fallback_command: Option<String>,
     pub bands: ToneBands,
     pub floors: GuardrailFloors,
 }
@@ -24,6 +25,7 @@ impl Default for EffectiveConfig {
             palette_path: default_palette_path(),
             quality: 2,
             osc11: false,
+            art_fallback_command: None,
             bands: ToneBands::default(),
             floors: GuardrailFloors::default(),
         }
@@ -37,6 +39,7 @@ struct FileConfig {
     palette_path: Option<String>,
     quality: Option<i8>,
     osc11: Option<bool>,
+    art_fallback_command: Option<String>,
     bands: FileBands,
     floors: FileFloors,
 }
@@ -112,6 +115,9 @@ impl EffectiveConfig {
         if let Some(osc11) = file.osc11 {
             config.osc11 = osc11;
         }
+        if let Some(command) = file.art_fallback_command {
+            config.art_fallback_command = Some(command);
+        }
         merge_band(&mut config.bands.background, file.bands.background);
         merge_band(&mut config.bands.text, file.bands.text);
         merge_band(&mut config.bands.accent, file.bands.accent);
@@ -150,6 +156,7 @@ impl EffectiveConfig {
             "palette_path" => self.palette_path = expand_tilde(value)?,
             "quality" => self.quality = parse(value, key)?,
             "osc11" => self.osc11 = parse(value, key)?,
+            "art_fallback_command" => self.art_fallback_command = Some(value.to_owned()),
             _ if key.starts_with("bands.") => self.set_band_value(key, value)?,
             _ if key.starts_with("floors.") => self.set_floor_value(key, value)?,
             _ => return Err(format!("unknown config key: {key}")),
@@ -166,6 +173,7 @@ impl EffectiveConfig {
             "palette_path" => self.palette_path.display().to_string(),
             "quality" => self.quality.to_string(),
             "osc11" => self.osc11.to_string(),
+            "art_fallback_command" => self.art_fallback_command.clone().unwrap_or_default(),
             _ if key.starts_with("bands.") => self.band_value(key)?.to_string(),
             _ if key.starts_with("floors.") => self.floor_value(key)?.to_string(),
             _ => return Err(format!("unknown config key: {key}")),
@@ -186,6 +194,11 @@ impl EffectiveConfig {
                     "base_theme must expand to an absolute path, got {}",
                     path.display()
                 ));
+            }
+        }
+        if let Some(command) = &self.art_fallback_command {
+            if command.trim().is_empty() {
+                return Err("art_fallback_command must not be empty; omit the key instead".into());
             }
         }
         if !(0..=4).contains(&self.quality) {
@@ -439,6 +452,29 @@ mod tests {
         assert_eq!(config.bands.selection.min, 0.72);
         assert_eq!(config.floors.highlight_selection, 5.0);
         assert_eq!(config.floors.selection_active_delta_l, 0.09);
+    }
+
+    #[test]
+    fn art_fallback_command_plumbs_through_file_override_and_query() {
+        let config =
+            EffectiveConfig::from_toml("art_fallback_command = \"my-art-script\"").unwrap();
+        assert_eq!(
+            config.art_fallback_command.as_deref(),
+            Some("my-art-script")
+        );
+
+        let mut config = EffectiveConfig::default();
+        assert_eq!(config.print_value("art_fallback_command").unwrap(), "");
+        config
+            .apply_override("art_fallback_command=cat ~/art.jpg")
+            .unwrap();
+        assert_eq!(
+            config.print_value("art_fallback_command").unwrap(),
+            "cat ~/art.jpg"
+        );
+
+        let empty = EffectiveConfig::from_toml("art_fallback_command = \"  \"");
+        assert!(empty.is_err(), "whitespace-only command must be rejected");
     }
 
     #[test]
