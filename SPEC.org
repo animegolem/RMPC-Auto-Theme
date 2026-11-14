@@ -3,7 +3,7 @@
 
 | Status | Revision | Date       |
 |--------+----------+------------|
-| Draft  | 0.13     | 2026-09-18 |
+| Draft  | 0.14     | 2026-11-14 |
 
 This document is the constitution of the project: every design
 decision derives from it, and amendments land here before they land
@@ -291,6 +291,27 @@ CIELAB-era values; v2 measures hue in OKLch).
   write-then-apply path and clears the art-hash state, so the next
   track with art regenerates. No-art tracks read as the base look,
   never as the previous album's leftovers.
+- Art fallback hook (rev 0.14, owner-ruled 2026-11-14): when BOTH
+  MPD verbs return no art for the admitted URI, the publisher MAY
+  run a user-configured command (=art_fallback_command=, default
+  unset) via =/bin/sh -c= with =FILE= set to the admitted identity
+  in its environment, taking stdout as art bytes. The hook is a
+  USERSPACE PRIMITIVE, not a format integration: the project never
+  special-cases yt-dlp, cache layouts, or any second space — users
+  script their own art sources against this one seam. Bounds
+  (asserted, per the limits law): hard 10-second wall clock (the
+  child is killed on expiry), stdout capped at the same
+  =MAX_ART_BYTES= as MPD reads, stdin closed. Nonzero exit, empty
+  stdout, timeout, or oversize all degrade to the normal no-art
+  path with a stderr note — the fallback can never fail theming
+  harder than having no art at all. The identity fence holds: the
+  command receives and is bound to the ADMITTED file; its bytes
+  ride the same token-checked publish/commit path as MPD art.
+  Verified live 2026-11-14 before ruling: rmpc's own =addyt=
+  (yt-dlp =--embed-thumbnail=) already rethemes with NO fallback
+  configured, because MPD =readpicture= serves embedded art for
+  out-of-database absolute paths; the hook exists for sources that
+  do not embed.
 - Short-circuit: SHA-256 of art bytes; unchanged hash exits before
   extraction (same-album tracks must not regenerate or flicker).
   Missing hash tool degrades to always-regenerate, never to failure.
@@ -355,6 +376,7 @@ tabs belong in config.ron; the tab bar hides by omitting
 
 | rev | date       | change |
 |-----+------------+--------|
+| 0.14 | 2026-11-14 | GitHub issue triage (owner-directed, this session): §7 gains the art fallback hook — =art_fallback_command=, a userspace primitive run only when both MPD verbs return no art; 10 s / MAX_ART_BYTES bounds; every failure degrades to no-art. Live reproduction first established that issue #3's ask (yt-dlp retheme) already works via readpicture on embedded thumbnails, and issue #1's truncation no longer reproduces (header scrolls on 0.11 + v2 base theme). |
 | 0.13 | 2026-09-18 | Owner ruling: color math pulled into this repo — color-core VENDORED at vendor/color-core (base 5baa20e + the reviewed additive mapped-coordinate seam, file SHA256 f396bbac…d4d8a3; two exhaustive independent sweeps prove math unaltered; Astra independent review + RL final review). §4 rewritten: path dependency on ~/git/color-tool-kmeans retired, parent app never modified by this project (the earlier canonical-landing attempt was reverted pristine, nothing committed there). No-ad-hoc-copy law retained; VENDORED.md governs re-syncs. Gates on vendored wiring: rmpc-theme-gen 37/0, vendored crate 27/0, fmt/clippy clean. |
 | 0.12 | 2026-09-18 | IMP-006 stop, severity-exemption scope fixed (§6): exemption = severity-SIGNALING foregrounds only (error/warn/debug/trace .fg stay literal); info.fg is neutral chrome and maps to accent per the binding table (album-table-white precedent); all level bg's map to background. Binding table, emit.rs mapping and 34/0 count STAND unchanged; only the rev 0.11 prose overreach is corrected. No-art corollary: base info.fg is a legitimate accent source in the fully-hex no-art bundle precisely because info.fg is the accent-bearing chrome slot. Ruling: carrier brief-004-imp-006 r7. |
 | 0.11 | 2026-09-17 | BRIEF-004 round-1 rulings: shipped default base = genericized v3 pair with sample config (§6); DQ-4 role table ratified with severity-color exemption (semantic colors stay literal); art acquisition file-addressed by admitted identity (§7 fence); no-art THEME path unchanged (stock base) while the ENVELOPE shape (roles present iff hex-resolvable) is a proposed contract amendment with grisaille (r14), not yet law. Verdict: RAG/reviews/BRIEF-004-round-1-verdict.md. |
